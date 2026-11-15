@@ -1,0 +1,22 @@
+---
+import { render } from 'astro:content';
+import Docs from '../../layouts/Docs.astro';
+import { getDocs } from '../../lib/docs.js';
+import '../../styles/prose.css';
+
+export async function getStaticPaths() {
+  const docs = await getDocs();
+  return docs.map(entry => ({ params: { slug: entry.id }, props: { entry } }));
+}
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+---
+<Docs title={entry.data.title} description={entry.data.description} current={entry.id} headings={headings} editPath={entry.filePath}>
+  <article class="prose" data-pagefind-body>
+    <p class="crumb label" data-pagefind-ignore>{entry.data.section}</p>
+    <h1 data-pagefind-meta="title">{entry.data.title}</h1>
+    {entry.data.description && <p class="lede">{entry.data.description}</p>}
+    {entry.data.draft && <p class="draft-note" data-pagefind-ignore>Rascunho: visível apenas no servidor de desenvolvimento.</p>}
+    <Content />
+  </article>
+</Docs>

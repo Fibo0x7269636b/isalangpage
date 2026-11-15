@@ -1,0 +1,101 @@
+---
+// Pagefind search. The index is produced after `astro build` (see package.json)
+// and loaded only when the dialog opens.
+---
+<button class="search-trigger" type="button" data-search-open aria-haspopup="dialog">
+  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5"/></svg>
+  <span>Buscar</span>
+  <kbd class="mono">Ctrl K</kbd>
+</button>
+<dialog class="search-dialog" data-search-dialog aria-label="Buscar na documentação">
+  <form method="dialog" class="search-box" role="search">
+    <label class="visually-hidden" for="search-input">Termo de busca</label>
+    <input id="search-input" type="search" placeholder="ownership, protocolo, Vec…" autocomplete="off" spellcheck="false" data-search-input />
+    <button class="esc mono" value="close" aria-label="Fechar">esc</button>
+  </form>
+  <div class="results" data-search-results aria-live="polite"></div>
+</dialog>
+
+<script>
+  import { url } from '../lib/paths.js';
+  let pagefind: any = null;
+  let failed = false;
+
+  async function load() {
+    if (pagefind || failed) return pagefind;
+    try {
+      pagefind = await import(/* @vite-ignore */ url('/_pagefind/pagefind.js'));
+      await pagefind.init?.();
+    } catch { failed = true; }
+    return pagefind;
+  }
+
+  function setup() {
+    const dialog = document.querySelector<HTMLDialogElement>('[data-search-dialog]');
+    const input = document.querySelector<HTMLInputElement>('[data-search-input]');
+    const results = document.querySelector<HTMLElement>('[data-search-results]');
+    if (!dialog || !input || !results || dialog.dataset.ready) return;
+    dialog.dataset.ready = 'true';
+    const open = async () => {
+      dialog.showModal();
+      input.focus();
+      input.select();
+      const pf = await load();
+      if (!pf) results.innerHTML = '<p class="empty">O índice de busca é gerado por <code>npm run build</code> e não existe no servidor de desenvolvimento.</p>';
+    };
+    document.querySelectorAll('[data-search-open]').forEach(b => b.addEventListener('click', open));
+    let token = 0;
+    input.addEventListener('input', async () => {
+      const q = input.value.trim();
+      const pf = await load();
+      if (!pf) return;
+      const mine = ++token;
+      if (!q) { results.replaceChildren(); return; }
+      const search = await pf.debouncedSearch?.(q, {}, 150) ?? await pf.search(q);
+      if (mine !== token || !search) return;
+      const items = await Promise.all(search.results.slice(0, 8).map((r: any) => r.data()));
+      if (mine !== token) return;
+      if (!items.length) { results.innerHTML = `<p class="empty">Nada encontrado para “${q.replace(/[<>&"]/g, '')}”.</p>`; return; }
+      results.replaceChildren(...items.map((d: any) => {
+        const a = document.createElement('a');
+        a.href = d.url;
+        a.className = 'result';
+        const title = document.createElement('span'); title.className = 'r-title'; title.textContent = d.meta?.title ?? d.url;
+        const ex = document.createElement('span'); ex.className = 'r-excerpt'; ex.innerHTML = d.excerpt;
+        a.append(title, ex);
+        a.addEventListener('click', () => dialog.close());
+        return a;
+      }));
+    });
+  }
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const btn = document.querySelector<HTMLButtonElement>('[data-search-open]');
+      if (btn) { e.preventDefault(); btn.click(); }
+    }
+  });
+  document.addEventListener('astro:page-load', setup);
+</script>
+
+<style>
+  .search-trigger { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; background: var(--bg-1); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--fg-dim); font: 13.5px var(--font-sans); cursor: pointer; }
+  .search-trigger:hover { color: var(--fg-muted); border-color: var(--fg-dim); }
+  .search-trigger span { flex: 1; text-align: left; }
+  kbd { font-size: 10.5px; border: 1px solid var(--line-strong); border-radius: 3px; padding: 2px 5px; }
+  .search-dialog { width: min(640px, calc(100vw - 32px)); max-height: min(70vh, 640px); margin: 10vh auto auto; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-1); color: var(--fg); box-shadow: 0 40px 120px -20px rgba(0,0,0,.9); }
+  .search-dialog::backdrop { background: rgba(5, 6, 6, .7); backdrop-filter: blur(2px); }
+  .search-dialog[open] { animation: dialog-in .22s var(--ease) both; }
+  .search-dialog[open]::backdrop { animation: backdrop-in .22s var(--ease) both; }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } }
+  @keyframes backdrop-in { from { opacity: 0; } }
+  .search-box { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .search-box input { flex: 1; background: none; border: none; color: var(--fg); font: 16px var(--font-sans); outline: none; }
+  .esc { background: none; border: 1px solid var(--line-strong); color: var(--fg-dim); border-radius: 3px; font-size: 11px; padding: 3px 6px; cursor: pointer; }
+  .results { overflow: auto; max-height: calc(min(70vh, 640px) - 60px); padding: 6px; }
+  .results :global(.result) { display: block; padding: 10px 12px; border-radius: 6px; text-decoration: none; }
+  .results :global(.result:hover), .results :global(.result:focus) { background: var(--bg-2); }
+  .results :global(.r-title) { display: block; font-weight: 600; margin-bottom: 2px; }
+  .results :global(.r-excerpt) { display: block; font-size: 13.5px; color: var(--fg-muted); }
+  .results :global(mark) { background: none; color: var(--own); }
+  .results :global(.empty) { color: var(--fg-dim); padding: 12px; margin: 0; font-size: 14px; }
+</style>

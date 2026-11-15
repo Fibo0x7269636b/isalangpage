@@ -1,0 +1,22 @@
+// Enum com payloads de tipos diferentes e funções aplicadas por match.
+enum Number {
+  Integer(u64),
+  Decimal(f64),
+  Empty,
+}
+fn increment(value: i32) -> i32 {
+  return value + 1;
+}
+fn describe(number: Number) {
+  match number {
+    Number::Integer(value) => @println("integer={}", value),
+    Number::Decimal(value) => @println("decimal={}", value),
+    Number::Empty => @println("empty"),
+  }
+}
+fn main() {
+  @println("increment={}", increment(41));
+  describe(Number::Integer(42u64));
+  describe(Number::Decimal(0.5));
+  describe(Number::Empty);
+}

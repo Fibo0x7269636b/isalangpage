@@ -1,0 +1,32 @@
+// Ownership de Vec<i32> e String passado por valor, por &mut e por slice.
+@import "std.vec"
+
+fn grow(values: Vec<i32>) -> Vec<i32> {
+  values.push(20);
+  return values.move();
+}
+fn edit(text: &mut String) -> usize {
+  text.push_str(" editado");
+  return text.len();
+}
+fn total(values: &i32[]) -> i32 {
+  let sum = 0;
+  let i: usize = 0;
+  while i < values.len() {
+    sum = sum + values[i];
+    i = i + 1;
+  }
+  return sum;
+}
+fn main() {
+  let values = Vec<i32> {
+    10
+  };
+  let result = grow(values.move());
+  @println("length = {}", result.len());
+  let text = String::from("texto");
+  let length = edit(&mut text);
+  @println("{} ({})", text, length);
+  let data: i32[3] = [1, 2, 3];
+  @println("sum = {}", total(&data));
+}

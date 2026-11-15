@@ -1,0 +1,11 @@
+---
+// 2×2 mark: the four memory states (Own, Unique, Shared, Dead).
+interface Props { size?: number }
+const { size = 18 } = Astro.props;
+---
+<svg class="logo-mark" width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1" y="1" width="8" height="8" rx="1.2" fill="var(--own)" />
+  <rect x="11" y="1" width="8" height="8" rx="1.2" fill="var(--unique)" />
+  <rect x="1" y="11" width="8" height="8" rx="1.2" fill="var(--shared)" />
+  <rect x="11.6" y="11.6" width="6.8" height="6.8" rx="1" fill="none" stroke="var(--dead)" stroke-width="1.2" />
+</svg>

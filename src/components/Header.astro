@@ -1,0 +1,112 @@
+---
+import Logo from './Logo.astro';
+import { url } from '../lib/paths.js';
+import { githubUrl } from '../site.config.js';
+interface Props { section: string }
+const { section } = Astro.props;
+const links = [
+  { href: url('/'), label: 'Visão geral', key: 'home' },
+  { href: url('/lab/'), label: 'Lab', key: 'lab' },
+  { href: url('/docs/'), label: 'Documentação', key: 'docs' },
+  { href: url('/#instalar'), label: 'Instalação', key: 'install' },
+];
+---
+<header class="site-header" transition:persist="site-header">
+  <div class="bar wrap">
+    <a class="brand" href={url('/')} aria-label="Isalang, página inicial">
+      <Logo />
+      <span class="mono">isalang</span>
+    </a>
+    <nav aria-label="Principal">
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="visually-hidden">Abrir menu</span>
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <ul id="site-nav">
+        {links.map(l => (
+          <li><a href={l.href} data-nav={l.key} aria-current={section === l.key ? 'page' : undefined}>{l.label}</a></li>
+        ))}
+        <li><a href={githubUrl()} rel="noopener">GitHub</a></li>
+      </ul>
+    </nav>
+    <a class="isac-status" href={url('/lab/')} data-state="idle" title="Estado do compilador Isac nesta sessão">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="text mono">isac: não carregado</span>
+    </a>
+  </div>
+</header>
+
+<script>
+  import { labStatus, startLab } from '../lab/client.js';
+  // The header is persisted across client-side navigations, so this runs once.
+  const header = document.querySelector('.site-header');
+  const status = header.querySelector('.isac-status');
+  const text = status.querySelector('.text');
+  labStatus.subscribe(s => {
+    status.dataset.state = s.state;
+    text.textContent =
+      s.state === 'ready' ? 'isac: pronto' :
+      s.state === 'loading' ? `isac: ${s.percent != null ? s.percent + '%' : 'carregando'}` :
+      s.state === 'error' ? 'isac: falhou' : 'isac: não carregado';
+  });
+  // Links marked data-lab-start begin loading the compiler on click, so the
+  // download overlaps with the navigation to /lab/.
+  document.addEventListener('click', e => {
+    const link = (e.target as Element).closest?.('[data-lab-start]');
+    if (link) startLab().catch(() => {});
+  });
+  const toggle = header.querySelector('.menu-toggle');
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    header.classList.toggle('open', open);
+  });
+  document.addEventListener('astro:page-load', () => {
+    toggle.setAttribute('aria-expanded', 'false');
+    header.classList.remove('open');
+    const section = document.body.dataset.section;
+    header.querySelectorAll('[data-nav]').forEach(a => {
+      if (a.dataset.nav === section) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  });
+</script>
+
+<style>
+  .site-header {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  /* Same column as page content; full width only while the Lab IDE is open. */
+  .bar { height: var(--header-h); display: flex; align-items: center; gap: 24px; max-width: var(--maxw); transition: max-width .3s var(--ease); }
+  :global(body[data-lab-view='ready']) .bar { max-width: none; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  nav { flex: 1; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; }
+  ul a { display: block; padding: 6px 10px; border-radius: 4px; font-size: 14px; color: var(--fg-muted); text-decoration: none; transition: color .15s, background .15s; }
+  ul a:hover { color: var(--fg); background: var(--bg-2); }
+  ul a[aria-current='page'] { color: var(--fg); box-shadow: inset 0 -2px 0 var(--own); border-radius: 0; }
+  .menu-toggle { display: none; background: none; border: 1px solid var(--line-strong); color: var(--fg); border-radius: 4px; width: 34px; height: 34px; align-items: center; justify-content: center; cursor: pointer; }
+  .isac-status { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-dim); text-decoration: none; padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+  .isac-status:hover { color: var(--fg-muted); border-color: var(--line-strong); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dead); }
+  .isac-status[data-state='loading'] .dot { background: var(--own); animation: pulse 1s infinite alternate; }
+  .isac-status[data-state='ready'] .dot { background: var(--ok); }
+  .isac-status[data-state='ready'] { color: var(--fg-muted); }
+  .isac-status[data-state='error'] .dot { background: var(--err); }
+  @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
+
+  @media (max-width: 760px) {
+    .bar { gap: 12px; }
+    nav { order: 3; flex: 0; }
+    .menu-toggle { display: inline-flex; }
+    ul { display: none; position: absolute; left: 0; right: 0; top: var(--header-h); flex-direction: column; background: var(--bg-1); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; }
+    .site-header.open ul { display: flex; animation: menu-in .22s var(--ease) both; }
+    @keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } }
+    ul a { padding: 10px 6px; font-size: 15px; }
+    ul a[aria-current='page'] { box-shadow: inset 2px 0 0 var(--own); padding-left: 12px; }
+    .isac-status { margin-left: auto; }
+  }
+</style>

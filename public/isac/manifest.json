@@ -1,0 +1,26 @@
+{
+  "generated": "2026-11-15T01:07:40.848Z",
+  "compiler": {
+    "wasm": "isac.wasm.gz",
+    "loader": "isac.mjs",
+    "bytes": 51509496,
+    "gzipBytes": 14452752,
+    "sha256": "2104c7aad486595b10d1650f534a24a1cb5cc0e87c727310ac3736a75a4e8368",
+    "built": "2026-11-14T23:30:43.713Z",
+    "validated": true
+  },
+  "runtime": {
+    "wasm": "isac-runtime.wasm",
+    "loader": "isac-runtime.mjs",
+    "bytes": 56818,
+    "sha256": "9e349dfa8231c43306003b2e406b1a4b9b398cc83774255a5680aa11a8385d21"
+  },
+  "toolchain": {
+    "emscripten": "7.0.0",
+    "llvm": "21.1.0-rc3",
+    "llvm_revision": "6096d35ea93c75f648a253a00775b4d74915c819",
+    "node": "v26.8.2",
+    "emsdk_commit": "708dcbcc9ee23bc7d2dad44fc90db377e38b771c"
+  },
+  "target": "wasm32-unknown-emscripten"
+}

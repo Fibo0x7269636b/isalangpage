@@ -1,0 +1,147 @@
+---
+import { readFileSync } from 'node:fs';
+import Docs from '../../layouts/Docs.astro';
+import { getDocs } from '../../lib/docs.js';
+import { SITE } from '../../site.config.js';
+import manifest from '../../../public/isac/manifest.json';
+import '../../styles/prose.css';
+
+const docs = await getDocs();
+const templates = import.meta.glob('../../docs-templates/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const data = {
+  repo: SITE.repo,
+  branch: SITE.branch,
+  docsDir: SITE.docsDir,
+  compiler: manifest.compiler.sha256.slice(0, 12),
+  pages: docs.map(d => ({ id: d.id, path: d.filePath, title: d.data.title, section: d.data.section, raw: readFileSync(d.filePath!, 'utf8') })),
+  sections: [...new Set(['Conceitos', 'Guias', 'Referência', ...docs.map(d => d.data.section)])],
+  templates: Object.fromEntries(Object.entries(templates).map(([k, v]) => [k.split('/').pop()!.replace('.md', ''), v])),
+};
+---
+<Docs title="Editor de páginas" description="Criar e editar páginas da documentação da Isalang." wide>
+  <div class="editor-page" id="doc-editor">
+    <header class="ed-head">
+      <div>
+        <p class="label">autoria</p>
+        <h1>Editor de páginas</h1>
+        <p class="intro">
+          Rascunhos ficam neste navegador. Para publicar, o editor abre o GitHub com o arquivo preenchido e a mudança
+          segue como pull request, revisada e verificada pelo CI antes do deploy.
+        </p>
+      </div>
+    </header>
+
+    <form class="meta-form" data-meta onsubmit="return false">
+      <label class="f-page"><span class="label">página</span>
+        <select data-page>
+          <option value="">Nova página</option>
+          {data.pages.map(p => <option value={p.id}>{p.section} / {p.title}</option>)}
+        </select>
+      </label>
+      <label class="f-template"><span class="label">modelo</span>
+        <select data-template>
+          {Object.keys(data.templates).map(t => <option value={t}>{t}</option>)}
+        </select>
+      </label>
+      <label class="f-title"><span class="label">título</span><input data-field="title" required /></label>
+      <label class="f-desc"><span class="label">descrição</span><input data-field="description" /></label>
+      <label class="f-section"><span class="label">seção</span><input data-field="section" list="sections" /></label>
+      <datalist id="sections">{data.sections.map(s => <option value={s} />)}</datalist>
+      <label class="f-order"><span class="label">ordem</span><input data-field="order" type="number" step="1" /></label>
+      <label class="f-slug"><span class="label">arquivo</span><input data-field="slug" class="mono" pattern="[a-z0-9\-]+" /></label>
+      <label class="f-draft"><input data-field="draft" type="checkbox" /> <span>rascunho</span></label>
+      <p class="path mono" data-path></p>
+    </form>
+
+    <div class="ed-main">
+      <div class="ed-pane">
+        <div class="ed-bar">
+          <span class="label">markdown / mdx</span>
+          <span class="saved mono" data-saved></span>
+        </div>
+        <div class="ed-editor" data-editor></div>
+      </div>
+      <div class="ed-pane">
+        <div class="ed-bar tabs" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-tab="preview">Pré-visualização</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="checks">Verificação <span class="badge" data-badge hidden></span></button>
+        </div>
+        <div class="ed-preview prose" data-panel="preview"></div>
+        <div class="ed-checks" data-panel="checks" hidden>
+          <section>
+            <h2 class="label">frontmatter</h2>
+            <ul data-fm-results></ul>
+          </section>
+          <section>
+            <h2 class="label">blocos isalang</h2>
+            <p class="hint">Cada bloco é verificado com <code>isac --check</code> no compilador WebAssembly ({data.compiler}). Use <code>```isalang fail</code> para exemplos que devem ser rejeitados e <code>nocheck</code> para trechos incompletos. Blocos sem <code>fn main</code> são verificados com <code>--library</code>.</p>
+            <button class="btn small" type="button" data-check-blocks>Verificar blocos</button>
+            <ul data-block-results></ul>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="ed-actions">
+      <button class="btn primary" type="button" data-publish>Propor no GitHub</button>
+      <button class="btn" type="button" data-download>Baixar arquivo</button>
+      <button class="btn" type="button" data-copy>Copiar conteúdo</button>
+      <button class="btn" type="button" data-discard>Descartar rascunho</button>
+      <p class="pub-note" data-pub-note></p>
+    </div>
+  </div>
+  <script type="application/json" id="doc-editor-data" set:html={JSON.stringify(data)} />
+</Docs>
+
+<script>
+  document.addEventListener('astro:page-load', async () => {
+    const root = document.getElementById('doc-editor');
+    if (!root) return;
+    const data = JSON.parse(document.getElementById('doc-editor-data')!.textContent!);
+    const { mountDocEditor } = await import('../../docs-editor/editor.js');
+    mountDocEditor(root, data);
+  });
+</script>
+
+<style>
+  .ed-head h1 { font-size: clamp(28px, 3.6vw, 38px); margin: 10px 0 12px; }
+  .intro { color: var(--fg-muted); max-width: 72ch; }
+  .meta-form { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px 14px; margin: 24px 0 18px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-1); }
+  .meta-form label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .meta-form input:not([type=checkbox]), .meta-form select { height: 34px; padding: 0 10px; background: var(--bg); color: var(--fg); border: 1px solid var(--line-strong); border-radius: var(--radius); font: 14px var(--font-sans); width: 100%; }
+  .meta-form input.mono { font-family: var(--font-mono); font-size: 13px; }
+  .meta-form input:invalid { border-color: var(--err); }
+  .f-page { grid-column: span 5; } .f-template { grid-column: span 3; } .f-draft { grid-column: span 4; flex-direction: row !important; align-items: center; align-self: end; height: 34px; color: var(--fg-muted); font-size: 14px; }
+  .f-title { grid-column: span 6; } .f-desc { grid-column: span 6; }
+  .f-section { grid-column: span 4; } .f-order { grid-column: span 2; } .f-slug { grid-column: span 6; }
+  .path { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--fg-dim); }
+  .ed-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; height: min(78vh, 900px); }
+  .ed-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .ed-pane:first-child { border-right: 1px solid var(--line); }
+  .ed-bar { display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--bg); flex-shrink: 0; }
+  .ed-bar.tabs { justify-content: flex-start; padding: 0; }
+  .ed-bar.tabs button { height: 36px; background: none; border: none; color: var(--fg-dim); font: 500 12.5px var(--font-mono); padding: 0 14px; cursor: pointer; }
+  .ed-bar.tabs button[aria-selected='true'] { color: var(--fg); box-shadow: inset 0 -2px 0 var(--own); background: var(--bg-1); }
+  .badge { background: var(--warn); color: #1a1405; border-radius: 8px; padding: 1px 6px; font-size: 10.5px; margin-left: 4px; }
+  .saved { font-size: 11px; color: var(--fg-dim); }
+  .ed-editor { flex: 1; min-height: 0; overflow: hidden; }
+  .ed-editor :global(.cm-editor) { height: 100%; }
+  .ed-preview { flex: 1; overflow: auto; padding: 24px 28px; max-width: none; background: var(--bg); }
+  .ed-checks { flex: 1; overflow: auto; padding: 16px 18px; background: var(--bg); display: flex; flex-direction: column; gap: 24px; }
+  .ed-checks ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+  .ed-checks :global(li) { padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-1); color: var(--fg-muted); }
+  .ed-checks :global(li.ok) { border-left: 3px solid var(--ok); }
+  .ed-checks :global(li.bad) { border-left: 3px solid var(--err); }
+  .ed-checks :global(li.warn) { border-left: 3px solid var(--warn); }
+  .ed-checks :global(li pre) { margin: 6px 0 0; font-size: 11.5px; white-space: pre-wrap; color: var(--fg-dim); }
+  .hint { font-size: 13px; color: var(--fg-dim); margin: 8px 0 10px; }
+  .ed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+  .pub-note { flex-basis: 100%; margin: 4px 0 0; font-size: 13.5px; color: var(--fg-muted); min-height: 1.4em; }
+  @media (max-width: 980px) {
+    .ed-main { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .ed-pane:first-child { border-right: none; border-bottom: 1px solid var(--line); }
+    .ed-editor { height: 56vh; flex: none; }
+    .ed-preview, .ed-checks { min-height: 50vh; }
+    .meta-form > label { grid-column: 1 / -1 !important; }
+  }
+</style>

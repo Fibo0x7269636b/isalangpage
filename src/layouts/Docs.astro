@@ -1,0 +1,100 @@
+---
+import Base from './Base.astro';
+import Search from '../components/Search.astro';
+import { getDocs, groupBySection, docPath } from '../lib/docs.js';
+import { url } from '../lib/paths.js';
+
+interface Props {
+  title: string;
+  description?: string;
+  current?: string;          // entry id
+  headings?: { depth: number; slug: string; text: string }[];
+  editPath?: string;          // repository path of the source file
+  wide?: boolean;
+}
+const { title, description, current, headings = [], editPath, wide = false } = Astro.props;
+const docs = await getDocs();
+const sections = groupBySection(docs);
+const flat = sections.flatMap(s => s.pages);
+const index = flat.findIndex(d => d.id === current);
+const prev = index > 0 ? flat[index - 1] : null;
+const next = index >= 0 && index < flat.length - 1 ? flat[index + 1] : null;
+const toc = headings.filter(h => h.depth >= 2 && h.depth <= 3);
+---
+<Base title={title} description={description} section="docs" pagefind={!!current}>
+  <div class:list={['docs', 'wrap', { wide }]}>
+    <aside class="sidebar" aria-label="Navegação da documentação">
+      <Search />
+      <nav>
+        <a class="top" href={url('/docs/')} aria-current={!current && !wide ? 'page' : undefined}>Início</a>
+        {sections.map(s => (
+          <div class="group">
+            <p class="label">{s.name}</p>
+            <ul>
+              {s.pages.map(p => (
+                <li><a href={url(docPath(p))} aria-current={p.id === current ? 'page' : undefined}>{p.data.title}{p.data.draft && <span class="draft mono">rascunho</span>}</a></li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <div class="group tools">
+          <p class="label">autoria</p>
+          <ul><li><a href={url('/docs/editor/')} aria-current={wide ? 'page' : undefined}>Editor de páginas</a></li></ul>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="content">
+      <slot />
+      {current && (
+        <footer class="doc-foot">
+          <nav class="pager" aria-label="Páginas vizinhas">
+            {prev ? <a class="prev" href={url(docPath(prev))}><span class="label">anterior</span>{prev.data.title}</a> : <span></span>}
+            {next && <a class="next" href={url(docPath(next))}><span class="label">próxima</span>{next.data.title}</a>}
+          </nav>
+          {editPath && <a class="edit mono" href={url(`/docs/editor/?page=${encodeURIComponent(current)}`)}>editar esta página</a>}
+        </footer>
+      )}
+    </div>
+
+    {toc.length > 1 && (
+      <nav class="toc" aria-label="Nesta página">
+        <p class="label">nesta página</p>
+        <ul>{toc.map(h => <li class={`d${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>)}</ul>
+      </nav>
+    )}
+  </div>
+</Base>
+
+<style>
+  .docs { display: grid; grid-template-columns: 240px minmax(0, 1fr) 200px; gap: 48px; padding-top: 32px; }
+  .docs.wide { grid-template-columns: 240px minmax(0, 1fr); }
+  .sidebar { position: sticky; top: calc(var(--header-h) + 24px); align-self: start; max-height: calc(100vh - var(--header-h) - 48px); overflow: auto; display: flex; flex-direction: column; gap: 20px; padding-bottom: 24px; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 18px; }
+  .sidebar .label { margin: 0 0 8px; }
+  .sidebar ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+  .sidebar li a, .top { display: block; padding: 4px 12px; margin-left: -1px; border-left: 1px solid transparent; color: var(--fg-muted); text-decoration: none; font-size: 14px; }
+  .top { border-left: none; padding-left: 0; }
+  .sidebar a:hover { color: var(--fg); }
+  .sidebar a[aria-current='page'] { color: var(--fg); border-left-color: var(--own); }
+  .top[aria-current='page'] { color: var(--own); }
+  .draft { font-size: 10px; color: var(--warn); margin-left: 6px; }
+  .content { min-width: 0; padding-bottom: 40px; }
+  .doc-foot { margin-top: 56px; border-top: 1px solid var(--line); padding-top: 20px; }
+  .pager { display: flex; justify-content: space-between; gap: 16px; }
+  .pager a { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; min-width: 0; flex: 0 1 48%; }
+  .pager a:hover { border-color: var(--line-strong); }
+  .pager .next { text-align: right; margin-left: auto; }
+  .edit { display: inline-block; margin-top: 18px; font-size: 12.5px; color: var(--fg-dim); }
+  .toc { position: sticky; top: calc(var(--header-h) + 24px); align-self: start; font-size: 13px; }
+  .toc ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  .toc li a { display: block; padding: 3px 0; color: var(--fg-dim); text-decoration: none; }
+  .toc li.d3 a { padding-left: 12px; }
+  .toc a:hover { color: var(--fg); }
+  @media (max-width: 1180px) { .docs { grid-template-columns: 220px minmax(0, 1fr); } .toc { display: none; } }
+  @media (max-width: 820px) {
+    .docs, .docs.wide { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 20px; }
+    .sidebar { position: static; max-height: none; overflow: visible; }
+    .sidebar nav { flex-direction: row; flex-wrap: wrap; gap: 12px 24px; }
+  }
+</style>

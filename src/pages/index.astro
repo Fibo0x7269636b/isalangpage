@@ -1,0 +1,452 @@
+---
+import Base from '../layouts/Base.astro';
+import MoveTrace from '../components/MoveTrace.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import ProtocolDiagram from '../components/ProtocolDiagram.astro';
+import PipelineExplorer from '../components/PipelineExplorer.astro';
+import examples from '../data/lab-examples.json';
+import showcase from '../data/showcase.json';
+import LabLimits from '../components/LabLimits.astro';
+import manifest from '../../public/isac/manifest.json';
+import { url } from '../lib/paths.js';
+import { githubUrl, SITE } from '../site.config.js';
+
+const byId = new Map(examples.entries.map((e: any) => [e.id, e]));
+const connection: any = byId.get('connection.isa');
+const buffer: any = byId.get('heap/buffer.isa');
+const featured = examples.entries.filter((e: any) => e.featured && e.status === 'runs' && !['connection.isa', 'heap/buffer.isa'].includes(e.id));
+const count = (status: string) => examples.entries.filter((e: any) => e.status === status).length;
+const head = (s: string, n = 8) => { const l = s.replace(/\n$/, '').split('\n'); return l.length > n ? l.slice(0, n).join('\n') + '\n…' : l.join('\n'); };
+// From the call to release() to the end of main, after erasure.
+const mainLines = showcase.bufferMain.split('\n');
+const afterRelease = [mainLines[0], '  …', ...mainLines.slice(mainLines.findIndex((l: string) => /Buffer__release/.test(l)))].join('\n');
+---
+<Base section="home" pagefind>
+  <!-- hero -->
+  <section class="hero wrap" data-hero>
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-text">
+      <p class="label intro" style="--d:0">linguagem experimental · compilador isac</p>
+      <h1 class="title"><span class="title-text" data-title>Isalang</span><span class="caret" aria-hidden="true"></span></h1>
+      <p class="lead intro" style="--d:1">
+        Uma linguagem de programação de sistemas em que ownership, empréstimos e estados de protocolo
+        são verificados sobre um IR tipado e apagados antes da geração de código. Nenhuma flag de
+        ownership ou tag de estado chega ao binário.
+      </p>
+      <p class="sub intro" style="--d:2">
+        O compilador, Isac, é escrito em C++20 e gera código nativo por MLIR e LLVM. O modelo de
+        recursos vem do Rust; as quantidades 0, 1 e ω do Core vêm da Quantitative Type Theory, como em Idris 2.
+      </p>
+      <div class="cta intro" style="--d:3">
+        <a class="btn primary" href={url('/lab/?start')} data-lab-start>Abrir o Lab</a>
+        <a class="btn" href="#instalar">Instalação</a>
+        <a class="btn" href={githubUrl(SITE.compilerRepo)} rel="noopener">Código-fonte</a>
+      </div>
+    </div>
+    <div class="intro trace-wrap" style="--d:2"><MoveTrace /></div>
+  </section>
+  <script is:inline>
+    // Types the title once per tab session. Runs inline, before first paint of the
+    // hero, so the full title never flashes. Without JS or with reduced motion the
+    // static markup is shown as is.
+    (() => {
+      const hero = document.querySelector('[data-hero]');
+      if (!hero) return;
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let seen = false;
+      try { seen = sessionStorage.getItem('isalang-title-typed') === '1'; sessionStorage.setItem('isalang-title-typed', '1'); } catch {}
+      if (reduce || seen) { hero.dataset.intro = 'done'; return; }
+      const el = hero.querySelector('[data-title]');
+      const text = el.textContent;
+      hero.querySelector('h1').setAttribute('aria-label', text);
+      el.textContent = '';
+      hero.dataset.intro = 'typing';
+      let i = 0;
+      const step = () => {
+        el.textContent = text.slice(0, ++i);
+        if (i < text.length) setTimeout(step, 85 + Math.random() * 70);
+        else setTimeout(() => { hero.dataset.intro = 'done'; }, 260);
+      };
+      setTimeout(step, 420);
+    })();
+  </script>
+
+  <!-- memory states -->
+  <section class="block wrap" data-reveal id="estados" aria-labelledby="estados-title">
+    <header class="block-head">
+      <span class="label">01 · estados de memória</span>
+      <h2 id="estados-title">Quatro estados por binding, rastreados no Core</h2>
+      <p>
+        Cada recurso local tem um estado de memória independente do estado de protocolo. O checker
+        percorre a CFG do Core e rejeita operações incompatíveis com o estado corrente.
+      </p>
+    </header>
+    <div class="modes">
+      <article class="mode-card own">
+        <h3><span class="mode own">Own</span></h3>
+        <p>O binding possui o recurso: pode ler, escrever, mover e fazer transições de protocolo. Ao sair do escopo recebe drop implícito. No Core tem quantidade 1 e não é duplicado.</p>
+      </article>
+      <article class="mode-card shared">
+        <h3><span class="mode shared">Shared</span></h3>
+        <p>Empréstimo de leitura. Vários Shared podem coexistir. Enquanto houver leitores, o proprietário não escreve, não move e não muda de estado.</p>
+      </article>
+      <article class="mode-card unique">
+        <h3><span class="mode unique">Unique</span></h3>
+        <p>Empréstimo exclusivo. Exige ausência de qualquer outro empréstimo e deixa o proprietário indisponível até o último uso do alias.</p>
+      </article>
+      <article class="mode-card dead">
+        <h3><span class="mode dead">Dead</span></h3>
+        <p>Estado após move. Usar, mover de novo ou destruir explicitamente um slot morto é erro de compilação (<code>E0301</code>).</p>
+      </article>
+    </div>
+    <p class="aside">
+      Os empréstimos têm <code>LoanId</code> e <code>RegionId</code>; a duração das regiões é resolvida por ponto fixo
+      sobre a CFG, com backedges reais em loops. Na fronteira de erasure, move e borrow passam a usar o mesmo buffer
+      operacional e <code>EndBorrow</code> não gera instrução.
+    </p>
+  </section>
+
+  <!-- typestate -->
+  <section class="block wrap" data-reveal id="protocolos" aria-labelledby="protocolos-title">
+    <header class="block-head">
+      <span class="label">02 · typestate</span>
+      <h2 id="protocolos-title">Protocolos declaram quais métodos valem em cada estado</h2>
+      <p>
+        Um <code>protocol</code> lista estados, o inicial, os finais e as operações de cada estado com o modo do
+        receiver. Uma transição proprietária consome a versão atual do recurso e associa o mesmo nome à nova
+        versão. O drop exige um estado final.
+      </p>
+    </header>
+    <ProtocolDiagram source={connection.files[connection.main]} />
+    <div class="split proto-split">
+      <CodeBlock code={connection.files[connection.main]} file={`examples/${connection.id}`} example={connection.id} class="tall" />
+      <div class="split-side">
+        <div class="out">
+          <span class="label">Core verificado de main · <code>isac connection.isa --emit-core</code></span>
+          <pre class="mono core">{showcase.connectionCore}</pre>
+        </div>
+        <p class="note">
+          Cada <code>protocol.transition</code> registra o estado de origem e de destino e o modo de memória da chamada:
+          <code>connect</code> consome a versão em <code>Own</code>; <code>send</code> usa acesso <code>Shared</code> temporário;
+          <code>receive</code>, <code>Unique</code>. Chamar <code>send</code> com a conexão em <code>Disconnected</code> é rejeitado com <code>E0401</code>; deixá-la em
+          <code>Authenticated</code> no fim de <code>main</code>, com <code>E0410</code>. O estado é um testemunho estático:
+          depois do erasure resta apenas a chamada ao método.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- heap -->
+  <section class="block wrap" data-reveal id="heap" aria-labelledby="heap-title">
+    <header class="block-head">
+      <span class="label">03 · heap e drop</span>
+      <h2 id="heap-title">Alocação e liberação decididas em tempo de compilação</h2>
+      <p>
+        Recursos de heap carregam uma capability de alocação no Core. Drop explícito, fim de escopo e retorno antecipado
+        chamam free exatamente uma vez em cada caminho aceito. Não há refcount, GC nem verificação em runtime de
+        use-after-move ou double free: esses erros são rejeitados antes do MLIR.
+      </p>
+    </header>
+    <div class="split">
+      <CodeBlock code={buffer.files[buffer.main]} file={`examples/${buffer.id}`} example={buffer.id} />
+      <div class="split-side">
+        <ul class="facts">
+          <li><code>release()</code> libera a alocação e leva o valor de <code>Ready</code> a <code>Released</code>.</li>
+          <li>O wrapper continua <code>Own | Released</code> com a capability ausente; o drop no fim do escopo não chama free outra vez.</li>
+          <li><code>read</code> e <code>write</code> verificam limites em runtime e fazem panic fora deles.</li>
+        </ul>
+        <div class="out">
+          <span class="label">após erasure · <code>isac buffer.isa --emit-erased</code></span>
+          <pre class="mono">{showcase.bufferRelease}</pre>
+          <pre class="mono">{afterRelease}</pre>
+          <p class="note small">O único <code>free</code> do buffer está em <code>release</code>. Depois da chamada, <code>main</code> retorna sem liberar de novo: o drop do valor em <code>Released</code> não gera instrução.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- pipeline -->
+  <section class="block wrap" data-reveal id="pipeline" aria-labelledby="pipeline-title">
+    <header class="block-head">
+      <span class="label">04 · pipeline</span>
+      <h2 id="pipeline-title">Cada representação intermediária pode ser inspecionada</h2>
+      <p>
+        O mesmo programa (<code>examples/heap/box.isa</code>) em cada estágio. Os trechos foram gerados pela build
+        WebAssembly do Isac durante o build deste site; no Lab é possível ver os dumps completos de qualquer programa.
+      </p>
+    </header>
+    <PipelineExplorer />
+  </section>
+
+  <!-- examples -->
+  <section class="block wrap" data-reveal id="exemplos" aria-labelledby="exemplos-title">
+    <header class="block-head">
+      <span class="label">05 · exemplos</span>
+      <h2 id="exemplos-title">Programas do repositório, executados no navegador</h2>
+      <p>
+        Os programas de <code>examples/</code> são compilados com a build WebAssembly e executados a cada atualização do
+        site: {count('runs')} executam e {count('rejected')} é rejeitado de propósito. As saídas abaixo foram registradas
+        nessa execução. Exemplos que dependem de FFI com ponte C ou de <code>@thread</code> não funcionam no laboratório e
+        ficam fora da lista.
+      </p>
+    </header>
+    <div class="cards">
+      {featured.map((e: any) => (
+        <a class="card" href={url(`/lab/?example=${encodeURIComponent(e.id)}&start`)} data-lab-start>
+          <span class="card-path mono">{e.id}</span>
+          <h3>{e.title}</h3>
+          {e.summary && <p>{e.summary}</p>}
+          <pre class="mono">{head(e.stdout, 6)}</pre>
+          <span class="card-meta mono">alocações {e.allocations} · liberações {e.frees}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <!-- compiler -->
+  <section class="block wrap" data-reveal id="compilador" aria-labelledby="compilador-title">
+    <header class="block-head">
+      <span class="label">06 · compilador</span>
+      <h2 id="compilador-title">Isac</h2>
+      <p>Compilador multipasso em C++20 com HIR e Core próprios e backend MLIR/LLVM real.</p>
+    </header>
+    <div class="spec">
+      <dl>
+        <div><dt>Linguagem</dt><dd>C++20, CMake ≥ 3.20</dd></div>
+        <div><dt>Backend</dt><dd>MLIR/LLVM 21 (validado com 21.1.0-rc3); dialeto <code>isac</code> → func/arith/cf/memref → llvm</dd></div>
+        <div><dt>Targets</dt><dd>x86-64 Linux nativo; wasm32 na build WebAssembly. <code>usize</code> segue a largura de ponteiro do target.</dd></div>
+        <div><dt>Runtime</dt><dd>ABI C pequena (<code>isac_rt_*</code>) sobre libc. O código gerado não chama malloc/free diretamente.</dd></div>
+        <div><dt>Diagnósticos</dt><dd>Códigos tipados, spans, labels primários e secundários, notes e helps em stderr</dd></div>
+        <div><dt>Otimização</dt><dd><code>-O0</code> a <code>-O3</code>, <code>-Os</code>, <code>-Oz</code> via pipeline do LLVM</dd></div>
+      </dl>
+      <div class="cli">
+        <span class="label">inspeção pela CLI</span>
+        <pre class="mono">{`isac main.isa --check
+isac main.isa --emit-core      # Core verificado
+isac main.isa --emit-erased    # após erasure
+isac main.isa --emit-llvm -O2
+isac main.isa --emit-asm -o main.s
+isac main.isa -O2 -o main      # executável nativo
+isac main.isa -o main --runtime-test-counters
+isac main.isa -o main --sanitize   # ASan/UBSan`}</pre>
+      </div>
+    </div>
+    <div class="wasm-note">
+      <h3>Build WebAssembly</h3>
+      <p>
+        O Lab usa o Isac compilado com Emscripten {manifest.toolchain?.emscripten} junto com LLVM/MLIR {manifest.toolchain?.llvm}.
+        Ela reaproveita a lista de fontes do CMake principal: os verificadores são os mesmos do compilador nativo.
+        O módulo tem {(manifest.compiler.bytes / 1048576).toFixed(1).replace('.', ',')} MiB e gera LLVM IR, assembly e objetos
+        para wasm32 e x86-64. Ele não inclui Clang nem linker: o Lab liga o objeto ao runtime C da linguagem, compilado
+        para WebAssembly à parte, e executa o programa em um worker.
+      </p>
+      <h4 class="label warn">não funciona no laboratório</h4>
+      <LabLimits />
+    </div>
+  </section>
+
+  <!-- install -->
+  <section class="block wrap" data-reveal id="instalar" aria-labelledby="instalar-title">
+    <header class="block-head">
+      <span class="label">07 · instalação</span>
+      <h2 id="instalar-title">Compilar a partir do código-fonte</h2>
+      <p>
+        Não há binários publicados. O build é testado em Linux x86-64 com Clang 22 e LLVM/MLIR 21.1.0-rc3 instalados
+        com os arquivos de desenvolvimento. Não há downloads automáticos durante o build.
+      </p>
+    </header>
+    <div class="steps-grid">
+      <div class="step">
+        <span class="label">requisitos</span>
+        <ul>
+          <li>Linux x86-64</li>
+          <li>CMake ≥ 3.20 e Ninja</li>
+          <li>Compilador C++20 (Clang recomendado)</li>
+          <li>LLVM/MLIR 21 com <code>MLIRConfig.cmake</code></li>
+          <li>Clang para a geração nativa e para a ponte FFI</li>
+          <li>Python 3 para a suíte de testes</li>
+        </ul>
+      </div>
+      <div class="step">
+        <span class="label">build e testes</span>
+        <pre class="mono">{`git clone ${githubUrl(SITE.compilerRepo)}.git
+cd ${SITE.compilerRepo.split('/')[1]}
+cmake -S . -B build -G Ninja \\
+  -DCMAKE_CXX_COMPILER=clang++ \\
+  -DMLIR_DIR=/usr/local/lib/cmake/mlir
+cmake --build build -j2
+ctest --test-dir build --output-on-failure -j4`}</pre>
+      </div>
+      <div class="step">
+        <span class="label">primeiro programa</span>
+        <pre class="mono">{`cat > hello.isa <<'EOF'
+fn main() -> i32 {
+  let text = String::from("Olá, Isalang");
+  print(text);
+  return 0;
+}
+EOF
+build/isac hello.isa --check
+build/isac hello.isa -O2 -o hello
+./hello`}</pre>
+      </div>
+    </div>
+    <p class="aside">
+      Sem opção, o Isac executa <code>--check</code>. Dumps vão para stdout e diagnósticos para stderr. A suíte inclui
+      execuções com ASan, UBSan e LeakSanitizer quando o Clang configurado os suporta (<code>ctest -L sanitizers</code>).
+    </p>
+  </section>
+
+  <!-- status -->
+  <section class="block wrap" data-reveal id="estado" aria-labelledby="estado-title">
+    <header class="block-head">
+      <span class="label">08 · estado atual</span>
+      <h2 id="estado-title">O que existe e o que ainda não existe</h2>
+    </header>
+    <div class="status-grid">
+      <div>
+        <h3 class="label ok">implementado</h3>
+        <ul>
+          <li>Funções, structs, enums com payload, <code>match</code> exaustivo, <code>if</code>/<code>while</code>/<code>loop</code>/<code>for</code></li>
+          <li>Structs, enums e impls genéricos; <code>Vec&lt;T&gt;</code>, <code>Box&lt;T&gt;</code>, <code>Option</code>, <code>Result</code></li>
+          <li>Move explícito, drop automático, empréstimos lexicais e inferidos pela CFG</li>
+          <li>Protocolos definidos pelo usuário, inclusive em campos de structs</li>
+          <li><code>String</code> UTF-8, slices, arrays estáticos e coleções da std</li>
+          <li><code>@macro</code> com higiene lexical, <code>@format</code>, <code>@println</code>, <code>@input</code></li>
+          <li>Imports locais com alias e detecção de ciclos</li>
+          <li>FFI C com ponteiros tipados, structs, callbacks e <code>unsafe</code></li>
+          <li><code>async</code>/<code>await</code> compilados para máquinas de estado, com empréstimos reconstruídos após cada await</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="label warn">ausente ou restrito</h3>
+        <ul>
+          <li>Funções livres genéricas</li>
+          <li>GC, reference counting e aritmética pública de ponteiros</li>
+          <li>Exceções e unwinding: panic e falta de memória abortam o processo, sem cleanup</li>
+          <li>Precisão de conflitos por raiz: campos disjuntos ainda não autorizam dois Unique simultâneos</li>
+          <li>Elementos de coleções que contêm referências e acesso mutável a elementos têm restrições</li>
+          <li><code>@thread</code> é experimental e depende de contratos de transferência e de um allocator entre threads</li>
+          <li>Os sanitizers validam a implementação; não há prova formal do checker</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // Reveal home sections as they enter the viewport (once).
+  function setupReveal() {
+    const items = document.querySelectorAll('[data-reveal]');
+    if (!items.length || matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    document.documentElement.classList.add('reveal-ready');
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.05 });
+    items.forEach(el => io.observe(el));
+  }
+  document.addEventListener('astro:page-load', setupReveal);
+  document.addEventListener('astro:before-swap', () => document.documentElement.classList.remove('reveal-ready'));
+</script>
+
+<style>
+  .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding-top: 72px; padding-bottom: 88px; isolation: isolate; }
+  /* Dot grid with a faint glow behind the trace panel. */
+  .hero-grid { position: absolute; inset: -40px 0 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(600px 360px at 78% 46%, color-mix(in srgb, var(--own) 9%, transparent), transparent 70%),
+      radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--fg) 14%, transparent) 1px, transparent 1.5px) 0 0 / 22px 22px;
+    mask-image: radial-gradient(ellipse 80% 75% at 55% 45%, #000 30%, transparent 78%); }
+  .hero h1 { font-size: clamp(54px, 8vw, 104px); letter-spacing: -0.05em; margin: 14px 0 22px; line-height: .95; display: flex; align-items: center; min-height: 1em; }
+  .caret { display: inline-block; width: .09em; height: .78em; margin-left: .06em; background: var(--own); border-radius: 1px; animation: caret 1.05s steps(2, jump-none) infinite; }
+  .hero[data-intro='done'] .caret { animation: caret 1.05s steps(2, jump-none) 4, caret-rest .6s var(--ease) 4.2s forwards; }
+  @keyframes caret { 0% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes caret-rest { to { opacity: .35; } }
+  /* Intro sequence: elements wait while the title is typed, then enter in order. */
+  .intro { transition: opacity .6s var(--ease), transform .6s var(--ease); transition-delay: calc(var(--d, 0) * 110ms); }
+  .hero[data-intro='typing'] .intro { opacity: 0; transform: translateY(10px); transition: none; }
+  .hero[data-intro='typing'] .trace-wrap { transform: translateY(18px) scale(.985); }
+  .hero[data-intro='typing'] :global(.lane) { animation-play-state: paused; }
+  .trace-wrap { min-width: 0; }
+  .lead { font-size: 19px; color: var(--fg); max-width: 54ch; line-height: 1.55; }
+  .sub { color: var(--fg-muted); max-width: 56ch; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+
+  .block { padding-top: 64px; padding-bottom: 32px; border-top: 1px solid var(--line); position: relative; }
+  .block-head { max-width: 760px; margin-bottom: 32px; }
+  .block-head h2 { font-size: clamp(26px, 3.2vw, 36px); margin: 12px 0 14px; }
+  .block-head p { color: var(--fg-muted); font-size: 16.5px; }
+  .aside { color: var(--fg-muted); font-size: 14.5px; max-width: 82ch; margin-top: 24px; padding-left: 14px; border-left: 2px solid var(--line-strong); }
+
+  .modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .mode-card { padding: 22px 20px 24px; background: var(--bg-1); border-right: 1px solid var(--line); position: relative; }
+  .mode-card:last-child { border-right: none; }
+  .mode-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: currentColor; opacity: .9; }
+  .mode-card.own { color: var(--own); } .mode-card.shared { color: var(--shared); } .mode-card.unique { color: var(--unique); } .mode-card.dead { color: var(--dead); }
+  .mode-card h3 { margin: 0 0 14px; }
+  .mode-card .mode { font-size: 13px; padding: 4px 8px; }
+  .mode-card p { color: var(--fg-muted); font-size: 14.5px; margin: 0; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .proto-split { margin-top: 20px; }
+  .split :global(.tall pre) { max-height: 560px; overflow: auto; }
+  .split-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .out { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); padding: 12px 14px; }
+  .out pre { margin: 8px 0 0; font-size: 12.5px; color: var(--fg); white-space: pre; overflow-x: auto; }
+  .out pre.core { font-size: 11.5px; white-space: pre; overflow-x: auto; max-height: 420px; }
+  .out pre + pre { border-top: 1px dashed var(--line); padding-top: 8px; }
+  .note.small { font-size: 13.5px; margin-top: 10px; }
+  .out .label code { text-transform: none; letter-spacing: 0; font-size: 11px; }
+  .wasm-note h4 { margin: 18px 0 10px; }
+  .wasm-note strong { color: var(--fg); font-weight: 600; }
+  .note { color: var(--fg-muted); font-size: 14.5px; margin: 0; }
+  .facts { margin: 0; padding-left: 18px; color: var(--fg-muted); font-size: 15px; }
+  .facts li { margin-bottom: 10px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .card { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-1); text-decoration: none; transition: border-color .2s var(--ease), transform .2s var(--ease); min-width: 0; }
+  .card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+  .card-path { font-size: 11.5px; color: var(--fg-dim); }
+  .card h3 { font-size: 18px; margin: 0; }
+  .card p { color: var(--fg-muted); font-size: 14px; margin: 0; }
+  .card pre { margin: auto 0 0; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font-size: 12px; color: var(--fg-muted); white-space: pre-wrap; max-height: 140px; overflow: hidden; }
+  .card-meta { font-size: 11.5px; color: var(--fg-dim); }
+
+  .spec { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 28px; }
+  .spec dl { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .spec dl div { display: grid; grid-template-columns: 130px 1fr; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--bg-1); }
+  .spec dl div:last-child { border-bottom: none; }
+  .spec dt { font: 500 12px/1.6 var(--font-mono); color: var(--fg-dim); text-transform: uppercase; letter-spacing: .06em; }
+  .spec dd { margin: 0; color: var(--fg-muted); font-size: 14.5px; }
+  .cli pre, .step pre { margin: 10px 0 0; background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; font-size: 12.5px; line-height: 1.7; color: var(--fg); overflow-x: auto; }
+  .wasm-note { margin-top: 28px; max-width: 82ch; }
+  .wasm-note h3 { font-size: 18px; }
+  .wasm-note p { color: var(--fg-muted); font-size: 15px; }
+
+  .steps-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; }
+  .step ul { margin: 12px 0 0; padding-left: 18px; color: var(--fg-muted); font-size: 14.5px; }
+  .step li { margin-bottom: 6px; }
+
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .status-grid ul { margin: 14px 0 0; padding-left: 18px; color: var(--fg-muted); font-size: 15px; }
+  .status-grid li { margin-bottom: 8px; }
+  .label.ok { color: var(--ok); } .label.warn { color: var(--warn); }
+
+  @media (max-width: 1080px) {
+    .hero { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 48px; }
+    .modes { grid-template-columns: 1fr 1fr; }
+    .mode-card:nth-child(2) { border-right: none; }
+    .mode-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    .split, .spec { grid-template-columns: minmax(0, 1fr); }
+    .steps-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .steps-grid .step:first-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .modes { grid-template-columns: minmax(0, 1fr); }
+    .mode-card { border-right: none; border-bottom: 1px solid var(--line); }
+    .mode-card:last-child { border-bottom: none; }
+    .steps-grid, .status-grid { grid-template-columns: minmax(0, 1fr); }
+    .spec dl div { grid-template-columns: 1fr; gap: 4px; }
+    .lead { font-size: 17px; }
+  }
+</style>

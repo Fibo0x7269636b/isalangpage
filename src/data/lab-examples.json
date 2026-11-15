@@ -1,0 +1,1186 @@
+{
+ "generated": "2026-11-15T01:15:05.680Z",
+ "entries": [
+  {
+   "id": "async_local.isa",
+   "main": "async_local.isa",
+   "files": {
+    "async_local.isa": "@import \"std.async\"\n\nasync fn increment(value: i32) -> i32 {\n  @println(\"increment {}\", value);\n  return value + 1;\n}\n\nasync fn message() -> String {\n  let text = String::from(\"value\");\n  let first = await increment(10);\n  let second = await increment(first);\n  text.push_str(\" ready\");\n  @println(\"{}: {}\", text, second);\n  return text.move();\n}\n\nasync fn main() {\n  let future = message();\n  @println(\"created\");\n  let text = await future;\n  print(text);\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "async/await local",
+   "summary": "Funções async encadeadas executadas como máquinas de estado, com String movida pelo future.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "created\nincrement 10\nincrement 11\nvalue ready: 12\nvalue ready",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 14,
+   "frees": 14
+  },
+  {
+   "id": "connection.isa",
+   "main": "connection.isa",
+   "files": {
+    "connection.isa": "pub protocol ConnectionState {\n  initial Disconnected;\n  final Disconnected;\n  state Disconnected {\n    connect(self) -> Connected;\n  }\n  state Connected {\n    send(shared self);\n    receive(unique self);\n    authenticate(self) -> Authenticated;\n    disconnect(self) -> Disconnected;\n  }\n  state Authenticated {\n    send(shared self);\n    receive(unique self);\n    logout(self) -> Connected;\n    disconnect(self) -> Disconnected;\n  }\n}\npub struct Connection: ConnectionState {\n  socket: i32,\n}\nimpl Connection {\n  pub fn connect(self) {\n    self.socket = 10;\n  }\n  pub fn send(shared self, data: i32) {\n    print(self.socket + data);\n  }\n  pub fn receive(unique self) {\n    self.socket = self.socket + 1;\n  }\n  pub fn authenticate(self, token: i32) {\n    self.socket = token;\n  }\n  pub fn logout(self) {\n    self.socket = 10;\n  }\n  pub fn disconnect(self) {\n    self.socket = 0;\n  }\n}\nfn main() -> i32 {\n  let conn = Connection::new();\n  conn.connect();\n  conn.send(1);\n  conn.authenticate(20);\n  conn.send(2);\n  conn.receive();\n  conn.send(3);\n  conn.logout();\n  conn.disconnect();\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Protocolo de conexão",
+   "summary": "Typestate com três estados. Cada método só é aceito no estado em que o protocolo o declara.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "11\n22\n24",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "containers/generic_storage.isa",
+   "main": "generic_storage.isa",
+   "files": {
+    "generic_storage.isa": "@import \"std.box\"\n@import \"std.vec\"\n\nfn make_values() -> Vec<Box<String >> {\n  let values = Vec<Box<String >>::new();\n  let first = String::from(\"Isalang\");\n  values.push(Box<String>::new(first.move()));\n  values.push(Box<String>::new(String::from(\"heap\")));\n  return values.move();\n}\n\nfn main() -> i32 {\n  let values = make_values();\n  let last = values.pop();\n  match last.move() {\n    Option::Some(box) => {\n      let text = box.into_inner();\n      @println(\"{}\", text);\n    },\n    Option::None => {},\n  }\n  @println(\"remaining = {}\", values.len());\n  values.clear();\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "Vec<Box<String>>",
+   "summary": "Containers genéricos owned com move de elementos e drop recursivo verificado.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "heap\nremaining = 1",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 10,
+   "frees": 10
+  },
+  {
+   "id": "control-flow/showcase.isa",
+   "main": "showcase.isa",
+   "files": {
+    "showcase.isa": "@import \"std.buffer\"\nenum Command {\n  Increment(i32),\n  Reset,\n}\nstruct Counter {\n  value: i32,\n}\nfn execute(command: Command, value: i32) -> i32 {\n  match command {\n    Command::Increment(amount) => {\n      return value + amount;\n    },\n    Command::Reset => {\n      return 0;\n    },\n  }\n}\nfn main() -> i32 {\n  let buffer = Buffer::new(4);\n  let counter = Counter::new();\n  for i in 0..4 {\n    let command = Command::Increment(1);\n    counter.value = execute(command.move(), counter.value);\n    buffer.write(i as usize, counter.value);\n  }\n  let index = 0;\n  while index < 4 {\n    if index == 1 {\n      index = index + 1;\n      continue;\n    }\n    print(buffer.read(index as usize));\n    index = index + 1;\n  }\n  loop {\n    if counter.value == 4 {\n      break;\n    }\n    counter.value = counter.value + 1;\n  }\n  buffer.release();\n  return 0;\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Enums, match e loops",
+   "summary": "Enum com payload, match exaustivo, for em range, while com continue e loop com break.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "1\n3\n4",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "heap/borrowing.isa",
+   "main": "borrowing.isa",
+   "files": {
+    "borrowing.isa": "@import \"std.box\"\nfn main() -> i32 {\n  let data = BoxI32::new(10);\n  borrow shared data as view {\n    print(view.get());\n  }\n  borrow unique data as edit {\n    edit.set(20);\n  }\n  print(data.get());\n  return 0;\n}\n"
+   },
+   "category": "heap",
+   "categoryLabel": "Heap",
+   "title": "Empréstimos lexicais",
+   "summary": "Blocos borrow shared e borrow unique sobre um BoxI32, sem cópia e sem nova alocação.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "10\n20",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "heap/buffer.isa",
+   "main": "buffer.isa",
+   "files": {
+    "buffer.isa": "@import \"std.buffer\"\nfn main() -> i32 {\n  let buffer = Buffer::new(32);\n  buffer.write(0, 10);\n  buffer.write(1, 20);\n  let index: usize = 1;\n  print(buffer.read(index));\n  print(buffer.len());\n  buffer.release();\n  return 0;\n}\n"
+   },
+   "category": "heap",
+   "categoryLabel": "Heap",
+   "title": "Buffer com release",
+   "summary": "release() libera a alocação e leva o valor ao estado final Released; o drop seguinte não libera de novo.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "20\n32",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "language_foundations/foundations.isa",
+   "main": "foundations.isa",
+   "files": {
+    "foundations.isa": "const BUFFER_SIZE: usize = 0x1000;\nconst FLAG_COUNT: usize = 0x800;\nstruct Storage {\n  offset: usize,\n  bytes: u8[BUFFER_SIZE],\n  flags: u8[FLAG_COUNT],\n}\nfn initialize(storage: &mut Storage) {\n  storage.offset = 0x200;\n  storage.bytes[0x200] = 0x60u8;\n  storage.bytes[0x201] = 0x2au8;\n  let index: usize = 0x7ff;\n  storage.flags[index] = 0b1u8;\n}\nfn clear(flags: &mut u8[]) {\n  for i in 0usize..flags.len() {\n    flags[i] = 0u8;\n  }\n}\nfn main() {\n  let storage = Storage::new();\n  initialize(&mut storage);\n  let word =(storage.bytes[storage.offset] as u16 << 8u16)\n  | storage.bytes[storage.offset + 1] as u16;\n  let profile = String::from(\"modern\");\n  @assert(profile == \"modern\");\n  clear(&mut storage.flags);\n  @println(\"word = {}, flags = {}\", word, storage.flags.len());\n}\n"
+   },
+   "category": "language_foundations",
+   "categoryLabel": "Linguagem",
+   "title": "Arrays e operações de bits",
+   "summary": "Constantes, arrays de tamanho fixo em structs, slices mutáveis, casts e deslocamentos.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "word = 24618, flags = 2048",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "macros_demo.isa",
+   "main": "macros_demo.isa",
+   "files": {
+    "macros_demo.isa": "@import \"std\"\n\n@macro debug_pair {\n  ($a: expr, $b: expr) => {\n    @println(\"({}, {})\", $a, $b);\n  }\n}\n\n@macro calculate {\n  ($value: expr) => {\n    {\n      let temp = $value;\n      temp * 2\n    }\n  }\n}\n\nfn main() -> i32 {\n  let temp: i32 = 100;\n  let value = @calculate(10 + 5);\n  @debug_pair(temp, value);\n\n  let greeting = @format(\"Olá, {}!\", \"Isalang\");\n  @println(\"{}\", greeting);\n  greeting.push_str(\" UTF-8\");\n  @println(\"{:?}\", greeting);\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Macros e formatação",
+   "summary": "Macros declaradas com @macro, captura de expressões e @format/@println.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "(100, 30)\nOlá, Isalang!\n\"Olá, Isalang! UTF-8\"",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 4,
+   "frees": 4
+  },
+  {
+   "id": "string_move_invalid.isa",
+   "main": "string_move_invalid.isa",
+   "files": {
+    "string_move_invalid.isa": "fn main() -> i32 {\n  let first = String::from(\"Isalang\");\n  let second = first.move();\n  print(first);\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Uso após move",
+   "summary": "String usada depois de ser movida. O checker rejeita o programa com E0301 antes de gerar código.",
+   "featured": true,
+   "stdin": "",
+   "args": [],
+   "status": "rejected",
+   "diagnosticCode": "E0301",
+   "diagnostics": "error[E0301]: use of moved value `first`\n  --> string_move_invalid.isa:4:9\n   |\n  3 |   let second = first.move();\n    |                ------------ ownership moved here\n  4 |   print(first);\n    |         ^^^^^ value used here after ownership was consumed\n    = note: the original binding no longer owns this resource\n    = help: use `second`, or borrow `first` instead of moving it"
+  },
+  {
+   "id": "async_borrow_reconstruction.isa",
+   "main": "async_borrow_reconstruction.isa",
+   "files": {
+    "async_borrow_reconstruction.isa": "@import \"std.async\"\n\nasync fn increment() -> i32 {\n  return 1;\n}\n\nasync fn main() {\n  let title = String::from(\"continued\");\n  let count = 0;\n  let name = &title;\n  let edit = &mut count;\n\n  let first = await increment();\n  print(name);\n  edit = edit + first;\n\n  let second = await increment();\n  print(name);\n  edit = edit + second;\n  print(count);\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Empréstimos através de await",
+   "summary": "Referências vivas atravessam pontos de await e são reconstruídas no frame do future.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "continued\ncontinued\n2",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 8,
+   "frees": 8
+  },
+  {
+   "id": "async/borrowed_append.isa",
+   "main": "borrowed_append.isa",
+   "files": {
+    "borrowed_append.isa": "// Empréstimo Unique usado antes de um await; a String continua owned por main.\n@import \"std.async\"\n\nfn append(text: &mut String) {\n  text.push_str(\"!\");\n}\nasync fn number() -> i32 {\n  return 7;\n}\nasync fn main() {\n  let text = String::from(\"pronto\");\n  append(&mut text);\n  let value = await number();\n  @println(\"{} {}\", text, value);\n}\n"
+   },
+   "category": "async",
+   "categoryLabel": "Async",
+   "title": "Empréstimo antes de await",
+   "summary": "A String é emprestada como &mut antes do await e continua owned por main.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "pronto! 7",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 6,
+   "frees": 6
+  },
+  {
+   "id": "containers/borrowed_mutable_access.isa",
+   "main": "borrowed_mutable_access.isa",
+   "files": {
+    "borrowed_mutable_access.isa": "@import \"std.vec\"\n\nstruct Holder<T> {\n  values: T,\n}\n\nfn suffix(values: &mut Vec<String>) {\n  let pending = values.get_mut(0);\n  let transferred = pending.move();\n  match transferred {\n    Some(text) => {\n      text.push_str(\"!\");\n    },\n    None => {},\n  }\n\n  values.push(String::from(\"next\"));\n}\n\nfn main() -> i32 {\n  let holder = Holder<Vec<String >>::new();\n  holder.values = Vec<String>::new();\n  holder.values.push(String::from(\"Isalang\"));\n\n  suffix(&mut holder.values);\n  match holder.values.get(0) {\n    Some(text) => {\n      @println(\"{}\", text);\n    },\n    None => {},\n  }\n  @println(\"elements = {}\", holder.values.len());\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "borrowed mutable access",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang!\nelements = 2",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 8,
+   "frees": 8
+  },
+  {
+   "id": "containers/borrowed_parameters.isa",
+   "main": "borrowed_parameters.isa",
+   "files": {
+    "borrowed_parameters.isa": "fn inspect(value: Option<&String>) {\n  match value {\n    Option::Some(view) => print(view),\n    Option::None => print(0),\n  }\n}\nfn forward(value: Option<&String>) {\n  inspect(value.move());\n}\nfn ignore(value: Option<&String>) {}\nfn main() {\n  let text = String::from(\"parameter\");\n  let wrapped = Option::Some(&text);\n  forward(wrapped.move());\n  text.push_str(\"!\");\n  print(text);\n  let none: Option<&String> = Option::None;\n  inspect(none.move());\n  ignore(Option::Some(&text));\n  text.clear();\n  print(text.len());\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "borrowed parameters",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "parameter\nparameter!\n0\n0",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/exclusive_results.isa",
+   "main": "exclusive_results.isa",
+   "files": {
+    "exclusive_results.isa": "@import \"std.vec\"\n\nfn first(values: &mut Vec<String>) -> Option<&mut String> {\n  return values.first_mut();\n}\n\nfn main() -> i32 {\n  let values = Vec<String>::new();\n  values.push(String::from(\"Olá\"));\n\n  let edit = &mut values;\n  let result = first(edit);\n  match result {\n    Option::Some(text) => {\n      text.push_str(\", Isalang!\");\n    },\n    Option::None => {},\n  }\n\n  match edit.get(0) {\n    Option::Some(text) => {\n      @println(\"{}\", text);\n    },\n    Option::None => {},\n  }\n  values.push(String::from(\"second\"));\n  @println(\"len = {}\", values.len());\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "exclusive results",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Olá, Isalang!\nlen = 2",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 8,
+   "frees": 8
+  },
+  {
+   "id": "containers/field_poststates.isa",
+   "main": "field_poststates.isa",
+   "files": {
+    "field_poststates.isa": "@import \"std.buffer\"\n\nstruct Inner<T> {\n  value: T,\n}\n\nstruct Outer<T> {\n  prefix: i32,\n  inner: T,\n}\n\nfn main() {\n  let inner = Inner<Buffer>::new();\n  inner.value = Buffer::new(4);\n  let outer = Outer<Inner<Buffer >>::new();\n  outer.inner = inner.move();\n\n  outer.inner.value.write(0, 42);\n  print(outer.inner.value.read(0));\n\n  finish(&mut outer.inner);\n\n}\n\nfn finish(inner: &mut Inner<Buffer>) {\n  let buffer = inner.value.move();\n  buffer.release();\n  inner.value = buffer.move();\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "field poststates",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/initialization.isa",
+   "main": "initialization.isa",
+   "files": {
+    "initialization.isa": "@import \"std.collections\"\n\nconst ROWS: usize = 2;\nstruct Point {\n  x: i32,\n  y: i32,\n}\nstruct Board {\n  cells: i32[ROWS][3],\n  title: String,\n}\n\nfn main() -> i32 {\n  let names = Vec<String> {\n    \"Isalang\",\n    \"native\"\n  };\n  for name in &names {\n    @println(\"{}\", name);\n  }\n  let point = Point {\n    y: 20,\n    x: 10\n  };\n  @println(\"point = {}, {}\", point.x, point.y);\n\n  let board = Board {\n    title: \"board\",\n    cells: {\n      {\n        1,\n        2,\n        3\n      },\n      {\n        4,\n        5,\n        6\n      }\n    },\n  };\n  for i in 0usize..ROWS {\n    let row = &mut board.cells[i];\n    for cell in row {\n      cell = cell * 2;\n    }\n  }\n  @println(\"{}: last = {}\", board.title.as_str(), board.cells[1][2]);\n\n  let scores = HashMap<String, i32> {\n    \"first\" => 10,\n    \"second\" => 20\n  };\n  @println(\"map len = {}\", scores.len());\n  let unique = HashSet<String> {\n    \"a\",\n    \"a\",\n    \"b\"\n  };\n  @println(\"set len = {}\", unique.len());\n  let list = List<String> {\n    \"one\",\n    \"two\"\n  };\n  @println(\"list len = {}\", list.len());\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "initialization",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang\nnative\npoint = 10, 20\nboard: last = 12\nmap len = 2\nset len = 2\nlist len = 2",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 41,
+   "frees": 41
+  },
+  {
+   "id": "containers/linear_payloads.isa",
+   "main": "linear_payloads.isa",
+   "files": {
+    "linear_payloads.isa": "fn main() {\n  let item = Option::Some(String::from(\"Isalang\"));\n\n  match &mut item {\n    Option::Some(text) => text.push_str(\" payload\"),\n    Option::None => {},\n  }\n\n  match &item {\n    Option::Some(text) => print(text),\n    Option::None => {},\n  }\n\n  match item {\n    Option::Some(text) => print(text),\n    Option::None => {},\n  }\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "linear payloads",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang payload\nIsalang payload",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/multiple_origins.isa",
+   "main": "multiple_origins.isa",
+   "files": {
+    "multiple_origins.isa": "fn choose(a: &String, b: &String, condition: bool) -> Option<&String> {\n  if condition {\n    return Option::Some(a);\n  }\n  return Option::Some(b);\n}\nfn forward(a: &String, b: &String, condition: bool) -> Option<&String> {\n  return choose(a, b, condition);\n}\nfn identity(value: &String) -> &String {\n  return value;\n}\nfn inspect(value: &String) {\n  print(value);\n}\nfn main() {\n  let a = String::from(\"left\");\n  let b = String::from(\"right\");\n  let first = forward(&a, &b, true);\n  let second = first.move();\n  match &second {\n    Option::Some(r) => {\n      inspect(r);\n      let view = identity(r).as_str();\n      let copy = view;\n      print(copy);\n    },\n    Option::None => {},\n  }\n  match second {\n    Option::Some(r) => print(r),\n    Option::None => {}\n  }\n  let third = forward(&a, &b, false);\n  match third {\n    Option::Some(r) => print(r),\n    Option::None => {}\n  }\n  let same = choose(&a, &a, true);\n  match same {\n    Option::Some(r) => print(r),\n    Option::None => {}\n  }\n  a.push_str(\"!\");\n  b.push_str(\"!\");\n  print(a);\n  print(b);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "multiple origins",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "left\nleft\nleft\nright\nleft\nleft!\nright!",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "containers/mutable_access.isa",
+   "main": "mutable_access.isa",
+   "files": {
+    "mutable_access.isa": "@import(\"std.vec\", \"std.box\")\n\nfn main() -> i32 {\n  let values = Vec<i32>::new();\n  values.push(10);\n  values.push(20);\n\n  match values.get_mut(0) {\n    Some(value) => {\n      value = 42;\n    },\n    None => {},\n  }\n\n  let view = values.as_slice();\n  @println(\"first = {}, length = {}\", view[0], view.len());\n\n  let edit = values.as_mut_slice();\n  edit[1] = 99;\n  @println(\"second = {}\", edit[1]);\n  values.push(30);\n\n  let boxed = Box<String>::new(String::from(\"Isalang\"));\n  let text = boxed.get_mut();\n  text.push_str(\"!\");\n  @println(\"{}\", text);\n\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "mutable access",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "first = 42, length = 2\nsecond = 99\nIsalang!",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 8,
+   "frees": 8
+  },
+  {
+   "id": "containers/mutable_endpoints.isa",
+   "main": "mutable_endpoints.isa",
+   "files": {
+    "mutable_endpoints.isa": "@import \"std.vec\"\n\nfn decorate(values: &mut Vec<String>) {\n  let first = values.first_mut();\n  @println(\"has first = {}\", first.is_some());\n  match first {\n    Some(text) => {\n      text.push_str(\"!\");\n    },\n    None => {},\n  }\n\n  let last = values.last_mut();\n  @println(\"has last = {}\", !last.is_none());\n  match last {\n    Some(text) => {\n      text.push_str(\"?\");\n    },\n    None => {},\n  }\n\n  values.push(String::from(\"next\"));\n}\n\nfn main() -> i32 {\n  let values = Vec<String>::new();\n  values.push(String::from(\"Olá\"));\n  values.push(String::from(\"Isalang\"));\n  decorate(&mut values);\n  match values.get(0) {\n    Some(text) => {\n      @println(\"{}\", text);\n    },\n    None => {},\n  }\n  match values.get(1) {\n    Some(text) => {\n      @println(\"{}\", text);\n    },\n    None => {},\n  }\n  @println(\"elements = {}\", values.len());\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "mutable endpoints",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "has first = true\nhas last = true\nOlá!\nIsalang?\nelements = 3",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 13,
+   "frees": 13
+  },
+  {
+   "id": "containers/nested_owned_fields.isa",
+   "main": "nested_owned_fields.isa",
+   "files": {
+    "nested_owned_fields.isa": "struct Pair<T> {\n  first: T,\n  second: T,\n}\n\nstruct Holder<T> {\n  value: T,\n}\n\nfn main() {\n  let pair = Pair<String>::new();\n  pair.first = String::from(\"first\");\n  pair.second = String::from(\"second\");\n\n  let outer = Holder<Pair<String >>::new();\n  outer.value = pair.move();\n\n  let extracted = outer.value.move();\n  let text = extracted.second.move();\n  print(text);\n\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "nested owned fields",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "second",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "containers/ordinary_owned_fields.isa",
+   "main": "ordinary_owned_fields.isa",
+   "files": {
+    "ordinary_owned_fields.isa": "struct Outer {\n  prefix: i32,\n  pair: Pair,\n  tail: i32,\n}\n\nstruct Pair {\n  first: String,\n  number: i32,\n  second: String,\n}\n\nfn main() {\n  let pair = Pair::new();\n  pair.first = String::from(\"first\");\n  pair.second = String::from(\"second\");\n  pair.number = 17;\n\n  let outer = Outer::new();\n  outer.prefix = 1;\n  outer.tail = 2;\n  outer.pair = pair.move();\n\n  let extracted = outer.pair.move();\n  let text = extracted.second.move();\n  print(text);\n  print(extracted.number);\n  print(outer.tail);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "ordinary owned fields",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "second\n17\n2",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "containers/owned_fields.isa",
+   "main": "owned_fields.isa",
+   "files": {
+    "owned_fields.isa": "struct Holder<T> {\n  value: T,\n}\n\nimpl<T> Holder<T> {\n  fn set(unique self, value: T) {\n    self.value = value.move();\n  }\n}\n\nfn consume(holder: Holder<String>) {\n  let text = holder.value.move();\n  print(text);\n}\n\nfn partial(stop: bool) {\n  let holder = Holder<String>::new();\n  if stop {\n    return;\n  }\n  holder.value = String::from(\"cleanup\");\n}\n\nfn main() {\n  partial(true);\n  partial(false);\n  let holder = Holder<String>::new();\n  holder.value = String::from(\"old\");\n  holder.set(String::from(\"new\"));\n  consume(holder.move());\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "owned fields",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "new",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "containers/payload_region_contracts.isa",
+   "main": "payload_region_contracts.isa",
+   "files": {
+    "payload_region_contracts.isa": "enum Input<T> {\n  Missing,\n  Present(i32, T),\n}\n\nenum Views<T> {\n  Empty,\n  Pair(T, T),\n}\n\nfn adapt(value: Input<&String>, discard: bool) -> Result<&String, i32> {\n  if discard {\n    return Result::Err(9);\n  }\n  match value {\n    Input::Present(code, view) => {\n      return Result::Ok(view);\n    },\n    Input::Missing => {\n      return Result::Err(7);\n    },\n  }\n}\n\nfn duplicate(value: Result<&String, i32>) -> Views<&String> {\n  match value {\n    Result::Ok(view) => {\n      return Views::Pair(view, view);\n    },\n    Result::Err(code) => {\n      return Views::Empty;\n    },\n  }\n}\nfn inspect(value: Views<&String>) {\n  match value {\n    Views::Pair(a, b) => {\n      print(a);\n      print(b);\n    },\n    Views::Empty => print(0),\n  }\n}\nfn main() {\n  let text = String::from(\"paths\");\n  let input = Input::Present(123, &text);\n  inspect(duplicate(adapt(input.move(), false)));\n  text.push_str(\"!\");\n  print(text);\n  let missing: Input<&String> = Input::Missing;\n  let empty = duplicate(adapt(missing.move(), false));\n  text.clear();\n  inspect(empty.move());\n  let discarded = Input::Present(456, &text);\n  inspect(duplicate(adapt(discarded.move(), true)));\n  text.push_str(\"done\");\n  print(text);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "payload region contracts",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "paths\npaths\npaths!\n0\n0\ndone",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/protocol_fields.isa",
+   "main": "protocol_fields.isa",
+   "files": {
+    "protocol_fields.isa": "@import \"std.buffer\"\n\nstruct Resources {\n  buffer: Buffer,\n  text: String,\n}\n\nfn main() {\n  let resources = Resources::new();\n  resources.buffer = Buffer::new(8);\n  resources.text = String::from(\"owner\");\n\n  let reader = &resources.text;\n  print(reader);\n\n  let writer = &mut resources.text;\n  writer.push_str(\"!\");\n  print(writer);\n\n  let buffer = resources.buffer.move();\n  buffer.write(0, 42);\n  print(buffer.read(0));\n  buffer.release();\n  resources.buffer = buffer.move();\n\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "protocol fields",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "owner\nowner!\n42",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "containers/protocol_projections.isa",
+   "main": "protocol_projections.isa",
+   "files": {
+    "protocol_projections.isa": "@import \"std.buffer\"\n\nstruct Owner {\n  buffer: Buffer,\n  text: String,\n  spare: String,\n}\n\nfn main() {\n  let owner = Owner::new();\n  owner.buffer = Buffer::new(4);\n  owner.text = String::from(\"owned\");\n\n  owner.buffer.write(0, 42);\n  print(owner.buffer.read(0));\n\n  owner.text.push_str(\"!\");\n  print(owner.text.len());\n\n  let reader = &owner.buffer;\n  let alias = &reader;\n  print(alias.len());\n\n  let writer = &mut owner.buffer;\n  writer.write(1, 20);\n  print(writer.read(1));\n\n  let buffer = owner.buffer.move();\n  buffer.release();\n  owner.buffer = buffer.move();\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "protocol projections",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42\n6\n4\n20",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 2,
+   "frees": 2
+  },
+  {
+   "id": "containers/reborrows.isa",
+   "main": "reborrows.isa",
+   "files": {
+    "reborrows.isa": "@import \"std.string\"\n\nfn inspect(value: &String) {\n  @println(\"{}\", value);\n}\n\nfn main() {\n  let text = String::from(\"Isalang\");\n  let writer = &mut text;\n\n  let reader = &*writer;\n  let alias = &reader;\n  inspect(alias);\n\n  let edit = &mut * writer;\n  edit.push_str(\" / regions\");\n\n  writer.push_str(\" / ownership\");\n  @println(\"{}\", text);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "reborrows",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang\nIsalang / regions / ownership",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "containers/returned_references.isa",
+   "main": "returned_references.isa",
+   "files": {
+    "returned_references.isa": "fn find(text: &String, present: bool) -> Option<&String> {\n  if present {\n    return Option::Some(text);\n  }\n  return Option::None;\n}\n\nfn main() {\n  let text = String::from(\"Isalang\");\n  let result = find(&text, true);\n\n  match result {\n    Option::Some(view) => print(view),\n    Option::None => print(\"not found\"),\n  }\n\n  text.push_str(\"!\");\n  print(text);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "returned references",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang\nIsalang!",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/sequences.isa",
+   "main": "sequences.isa",
+   "files": {
+    "sequences.isa": "// Arrays, slices e String emprestados a funções Isalang.\nfn sum(values: &i32[]) -> i32 {\n  let total = 0;\n  for i in 0usize..values.len() {\n    total = total + values[i];\n  }\n  return total;\n}\nfn update(values: &mut u8[]) {\n  for i in 0usize..values.len() {\n    values[i] = values[i] * 2u8;\n  }\n}\nfn text_length(text: &String) -> usize {\n  return text.len();\n}\nfn main() {\n  let values: i32[3] = [10, 20, 12];\n  let bytes: u8[3] = [1u8, 2u8, 3u8];\n  let text = String::from(\"Olá\");\n  @println(\"sum={} bytes={}\", sum(&values), text_length(&text));\n  update(&mut bytes);\n  @println(\"{} {} {}\", bytes[0], bytes[1], bytes[2]);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "Arrays, slices e String emprestados",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "sum=42 bytes=4\n2 4 6",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "containers/slice_elements.isa",
+   "main": "slice_elements.isa",
+   "files": {
+    "slice_elements.isa": "@import \"std.vec\"\n\nfn first(values: &i32[]) -> Option<&i32> {\n  return values.first();\n}\n\nfn main() {\n  let values = Vec<i32>::new();\n  values.push(10);\n  values.push(20);\n\n  let edit = values.as_mut_slice();\n  let item = edit.get_mut(1);\n  @println(\"has second = {}\", item.is_some());\n  match item {\n    Some(value) => {\n      value = 42;\n    },\n    None => {},\n  }\n\n  values.push(30);\n  let view = values.as_slice();\n  match first(view) {\n    Some(value) => {\n      @println(\"first = {}\", value);\n    },\n    None => {},\n  }\n  match view.last() {\n    Some(value) => {\n      @println(\"last = {}\", value);\n    },\n    None => {},\n  }\n  @println(\"missing = {}\", view.get(99).is_none());\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "slice elements",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "has second = true\nfirst = 10\nlast = 30\nmissing = true",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 6,
+   "frees": 6
+  },
+  {
+   "id": "containers/slices.isa",
+   "main": "slices.isa",
+   "files": {
+    "slices.isa": "fn sum(values: &i32[]) -> i32 {\n  let total = 0;\n  let index: usize = 0;\n  while index < values.len() {\n    total = total + values[index];\n    index = index + 1;\n  }\n  return total;\n}\nfn set(values: &mut i32[], index: usize) {\n  values[index] = 42;\n}\nfn main() -> i32 {\n  let values = [1, 2, 3];\n  print(sum(&values));\n  set(&mut values, 1);\n  let view: &i32[] = &values;\n  print(view.len());\n  print(view[1]);\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "slices",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "6\n3\n42",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "containers/stack_references.isa",
+   "main": "stack_references.isa",
+   "files": {
+    "stack_references.isa": "struct Pair<T> {\n  first: T,\n  second: T,\n}\nimpl<T> Pair<T> {\n  fn value(shared self) -> &T {\n    return &self.second;\n  }\n}\nfn wrap(data: &Pair<i32>) -> Option<&Pair<i32 >> {\n  return Option::Some(data);\n}\nfn relay(value: Option<&Pair<i32 >>) -> Option<&Pair<i32 >> {\n  return value.move();\n}\nfn value(input: Option<&Pair<i32 >>) -> Option<&i32> {\n  match input {\n    Option::Some(view) => {\n      return Option::Some(view.value());\n    },\n    Option::None => {\n      return Option::None;\n    },\n  }\n}\nfn array_view(values: &i32[3]) -> Option<&i32[3]> {\n  return Option::Some(values);\n}\nfn main() {\n  let data = Pair<i32>::new();\n  data.first = 1;\n  data.second = 42;\n  let item = relay(wrap(&data));\n  match item {\n    Option::Some(view) => print(view.value()),\n    Option::None => {}\n  }\n  data.second = 43;\n  print(data.second);\n  let field = value(wrap(&data));\n  match field {\n    Option::Some(v) => print(v),\n    Option::None => {}\n  }\n  data.second = 44;\n  let values: i32[3] = [10, 20, 30];\n  let array = array_view(&values);\n  match array {\n    Option::Some(view) => {\n      print(view.len());\n      print(view[2]);\n    },\n    Option::None => {}\n  }\n  values[2] = 40;\n  print(values[2]);\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "stack references",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42\n43\n43\n3\n30\n40",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "containers/stored_references.isa",
+   "main": "stored_references.isa",
+   "files": {
+    "stored_references.isa": "fn main() -> i32 {\n  let text = String::from(\"Isalang\");\n  let first: Option<&String> = Option::Some(&text);\n  let second = first.move();\n\n  match second {\n    Option::Some(view) => print(view),\n    Option::None => {},\n  }\n\n  text.push_str(\"!\");\n  print(text);\n  return 0;\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "stored references",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang\nIsalang!",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "containers/variant_set_contracts.isa",
+   "main": "variant_set_contracts.isa",
+   "files": {
+    "variant_set_contracts.isa": "enum Views<T> {\n  One(T),\n  Empty,\n  Missing(i32),\n}\nfn choose(value: Option<&String>, condition: bool) -> Views<&String> {\n  if condition {\n    return Views::Empty;\n  }\n  match value {\n    Option::Some(view) => {\n      return Views::One(view);\n    },\n    Option::None => {\n      return Views::Missing(7);\n    },\n  }\n}\nfn main() {\n  let text = String::from(\"unused\");\n  let n: Option<&String> = Option::None;\n  let v = choose(n.move(), false);\n  text.clear();\n  match &v {\n    Views::Empty => print(1),\n    Views::Missing(code) => print(code),\n    Views::One(view) => print(view),\n  }\n  match v {\n    Views::Missing(code) => print(code),\n    Views::One(view) => print(view),\n    Views::Empty => print(2),\n  }\n}\n"
+   },
+   "category": "containers",
+   "categoryLabel": "Containers e referências",
+   "title": "variant set contracts",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "7\n7",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "control-flow/commands.isa",
+   "main": "commands.isa",
+   "files": {
+    "commands.isa": "enum Command {\n  Quit,\n  Increment(i8),\n  Reset,\n}\n\nfn execute(command: Command, value: i8) -> i8 {\n  match command {\n    Command::Quit => {\n      return value;\n    },\n    Command::Increment(amount) => {\n      return value + amount;\n    },\n    Command::Reset => {\n      return 0;\n    },\n  }\n}\n\nfn print_nome(nome: str) {\n  print(nome);\n}\n\nfn main() -> i32 {\n  let value: i8 = 0;\n  for\n  i in 0..10 {\n    let c = Command::Increment(1);\n    value = execute(c.move(), value);\n  }\n  print(value);\n  match true {\n    true => print(\"true\"),\n    false => print(\"false\"),\n  }\n  print_nome(\"Guilherme\");\n  return 0;\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Comandos com enum",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "10\ntrue\nGuilherme",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "control-flow/heap-loops.isa",
+   "main": "heap-loops.isa",
+   "files": {
+    "heap-loops.isa": "@import \"std.box\"\nfn main() -> i32 {\n  let n = 0;\n  while n<5 {\n    let x = BoxI32::new(n);\n    n = n + 1;\n    if n == 2 {\n      continue;\n    }\n    print(x.get());\n    if n == 4 {\n      break;\n    }\n  }\n  for i in 0..4 {\n    if i == 1 {\n      continue;\n    }\n    print(i);\n  }\n  loop {\n    print(99);\n    break;\n  }\n  return 0;\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Heap dentro de loops",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "0\n2\n3\n0\n2\n3\n99",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 4,
+   "frees": 4
+  },
+  {
+   "id": "control-flow/iteration.isa",
+   "main": "iteration.isa",
+   "files": {
+    "iteration.isa": "@import \"std.iter\"\n\nfn main() {\n  for let i = 0;\n  i < 3;\n  i++ {\n    @println(\"index = {}\", i);\n  }\n\n  let matrix: i32[2][3] = {\n    {\n      1,\n      2,\n      3\n    },\n    {\n      4,\n      5,\n      6\n    }\n  };\n  for row in &matrix {\n    for value in row {\n      @println(\"row value = {}\", value);\n    }\n  }\n  for value in matrix.view().transpose().elements() {\n    @println(\"column value = {}\", value);\n  }\n  for value in matrix.view_mut().reverse_axis(1).elements_mut() {\n    *value = *value * 2;\n  }\n  for value in matrix.view().slice(0, 1, 2).elements().rev() {\n    @println(\"selected = {}\", value);\n  }\n\n  let words = List<String> {\n    \"Isalang\",\n    \"iteration\"\n  };\n  for word in words.view().elements().rev() {\n    @println(\"{}\", word);\n  }\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Iteração e views de matriz",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "index = 0\nindex = 1\nindex = 2\nrow value = 1\nrow value = 2\nrow value = 3\nrow value = 4\nrow value = 5\nrow value = 6\ncolumn value = 1\ncolumn value = 4\ncolumn value = 2\ncolumn value = 5\ncolumn value = 3\ncolumn value = 6\nselected = 12\nselected = 10\nselected = 8\niteration\nIsalang",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 26,
+   "frees": 26
+  },
+  {
+   "id": "control-flow/numbers.isa",
+   "main": "numbers.isa",
+   "files": {
+    "numbers.isa": "// Enum com payloads de tipos diferentes e funções aplicadas por match.\nenum Number {\n  Integer(u64),\n  Decimal(f64),\n  Empty,\n}\nfn increment(value: i32) -> i32 {\n  return value + 1;\n}\nfn describe(number: Number) {\n  match number {\n    Number::Integer(value) => @println(\"integer={}\", value),\n    Number::Decimal(value) => @println(\"decimal={}\", value),\n    Number::Empty => @println(\"empty\"),\n  }\n}\nfn main() {\n  @println(\"increment={}\", increment(41));\n  describe(Number::Integer(42u64));\n  describe(Number::Decimal(0.5));\n  describe(Number::Empty);\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Enum com payloads numéricos",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "increment=42\ninteger=42\ndecimal=0.5\nempty",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 4,
+   "frees": 4
+  },
+  {
+   "id": "control-flow/optimization.isa",
+   "main": "optimization.isa",
+   "files": {
+    "optimization.isa": "fn twice(x: i32) -> i32 {\n  return x * 2;\n}\nfn main() -> i32 {\n  let answer = twice(21);\n  if false {\n    print(999);\n  }\n  print(answer);\n  return 0;\n}\n"
+   },
+   "category": "control-flow",
+   "categoryLabel": "Controle de fluxo",
+   "title": "Programa para -O2",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "env/arguments.isa",
+   "main": "arguments.isa",
+   "files": {
+    "arguments.isa": "@import \"std.env\"\n\nfn main() -> i32 {\n  if argument_count() < 2 {\n    @println(\"missing argument\");\n    return 1;\n  }\n  let text = argument(1);\n  @println(\"argument = {}\", text);\n  let owned = String::from(text);\n  @println(\"owned = {}\", owned);\n  return 0;\n}\n"
+   },
+   "category": "env",
+   "categoryLabel": "Ambiente",
+   "title": "Argumentos de linha de comando",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [
+    "exemplo"
+   ],
+   "status": "runs",
+   "stdout": "argument = exemplo\nowned = exemplo",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 6,
+   "frees": 6
+  },
+  {
+   "id": "expressions.isa",
+   "main": "expressions.isa",
+   "files": {
+    "expressions.isa": "const ZERO: i32 = 0;\nconst ONE: i32 = ZERO + 1;\nconst COUNT: usize = 3;\n\nfn normalize(value: i32) -> i32 {\n  return match value {\n    ZERO => 10,\n    ONE => 20,\n    _ => 30,\n  };\n}\n\nfn main() -> i32 {\n  let values: i32[COUNT] = [0, 1, 2];\n  let parsed = String::from(\"1\").as_str().parse_i32().value();\n  let value = match parsed {\n    ZERO => normalize(values[0]),\n    ONE => normalize(values[1]),\n    _ => 30,\n  };\n  @println(\"value = {}\", value);\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Constantes e match como expressão",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "value = 20",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "file.isa",
+   "main": "file.isa",
+   "files": {
+    "file.isa": "pub protocol FileState {\n  initial Closed;\n  final Closed;\n  state Closed {\n    open(self) -> Open;\n  }\n  state Open {\n    read(shared self);\n    write(unique self);\n    close(self) -> Closed;\n  }\n}\n\npub struct File: FileState {\n  fd: i32,\n}\nimpl File {\n  pub fn open(self) {\n    self.fd = 7;\n  }\n  pub fn read(shared self) {\n    print(self.fd);\n  }\n  pub fn write(unique self) {\n    self.fd = self.fd + 1;\n  }\n  pub fn close(self) {\n    self.fd = 0;\n  }\n}\nfn main() -> i32 {\n  let file = File::new();\n  file.open();\n  file.read();\n  file.write();\n  file.read();\n  file.close();\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Protocolo de arquivo",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "7\n8",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 0,
+   "frees": 0
+  },
+  {
+   "id": "heap/box.isa",
+   "main": "box.isa",
+   "files": {
+    "box.isa": "@import \"std.box\"\nfn main() -> i32 {\n  let a = BoxI32::new(42);\n  let b = a.move();\n  print(b.get());\n  return 0;\n}\n"
+   },
+   "category": "heap",
+   "categoryLabel": "Heap",
+   "title": "BoxI32 e move",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "imports/isolated/main.isa",
+   "main": "main.isa",
+   "files": {
+    "main.isa": "@import \"left.isa\" as left\n@import \"right.isa\" as right\nfn main() {\n  @println(\"{} {}\", left::answer(), right::answer());\n  @left::show();\n  @right::show();\n}\n",
+    "left.isa": "pub fn answer() -> i32 {\n  return 10;\n}\n@macro show {\n  () => {\n    @println(\"left = {}\", answer());\n  }\n}\n",
+    "right.isa": "pub fn answer() -> i32 {\n  return 20;\n}\n@macro show {\n  () => {\n    @println(\"right = {}\", answer());\n  }\n}\n"
+   },
+   "category": "imports",
+   "categoryLabel": "Módulos",
+   "title": "Imports com alias",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "10 20\nleft = 10\nright = 20",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "imports/main.isa",
+   "main": "main.isa",
+   "files": {
+    "main.isa": "@macro dependencies {\n  () => {\n    @import(\"helpers/math.isa\", \"std.vec\", \"std.box\")\n  }\n}\n@dependencies()\n\nfn first(values: &Vec<i32>) -> Option<&i32> {\n  return values.first();\n}\n\nfn main() -> i32 {\n  let values = Vec<i32>::new();\n  values.push(@doubled(21));\n\n  let item = first(&values);\n  match item {\n    Option::Some(value) => {\n      @println(\"value = {}\", value);\n    },\n    Option::None => {},\n  }\n\n  values.push(10);\n  let boxed = Box<String>::new(String::from(\"Isalang\"));\n  @println(\"{}: {} elements\", boxed.get(), values.len());\n  return 0;\n}\n",
+    "helpers/math.isa": "pub fn twice(value: i32) -> i32 {\n  return value * 2;\n}\n\n@macro doubled {\n  ($value: expr) => {\n    twice($value)\n  }\n}\n"
+   },
+   "category": "imports",
+   "categoryLabel": "Módulos",
+   "title": "Imports locais",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "value = 42\nIsalang: 2 elements",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 7,
+   "frees": 7
+  },
+  {
+   "id": "input_demo.isa",
+   "main": "input_demo.isa",
+   "files": {
+    "input_demo.isa": "fn main() -> i32 {\n  let name = @input(\"Your name: \");\n  if !name.is_ok() {\n    @println(\"input error: {}\", name.error());\n    return 1;\n  }\n  let age = @input<i32>(\"How old are you, {}? \", name.value());\n  if !age.is_ok() {\n    @println(\"invalid age: {}\", age.error());\n    return 1;\n  }\n  @println(\"Hello {}, you are {} years old.\", name.value(), age.value());\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Leitura de stdin",
+   "summary": "@input lê uma linha e @input<i32> faz o parsing; os erros chegam como resultado, não como exceção.",
+   "featured": false,
+   "stdin": "Ana\n20\n",
+   "args": [],
+   "status": "runs",
+   "stdout": "Your name: How old are you, Ana? Hello Ana, you are 20 years old.",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 6,
+   "frees": 6
+  },
+  {
+   "id": "language_foundations/records.isa",
+   "main": "records.isa",
+   "files": {
+    "records.isa": "// Structs aninhadas com campos escalares, tamanho e alinhamento calculados pelo compilador.\nstruct Inner {\n  small: i16,\n  active: bool,\n}\nstruct Sample {\n  tag: u8,\n  number: i64,\n  inner: Inner,\n  ratio: f64,\n}\nfn score(sample: &Sample) -> i64 {\n  return sample.number + sample.tag as i64;\n}\nfn main() -> i32 {\n  let sample = Sample::new();\n  sample.tag = 7u8;\n  sample.number = 35i64;\n  sample.inner.small = 7i16;\n  sample.inner.active = true;\n  sample.ratio = 2.5;\n  @println(\"{} {} {}\", sample.tag, sample.number, sample.inner.active);\n  @println(\"score={} ratio={}\", score(&sample), sample.ratio);\n  @println(\"size={} align={}\", @size_of<Sample>(), @align_of<Sample>());\n  return 0;\n}\n"
+   },
+   "category": "language_foundations",
+   "categoryLabel": "Linguagem",
+   "title": "Structs aninhadas, @size_of e @align_of",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "7 35 true\nscore=42 ratio=2.5\nsize=40 align=8",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "ownership/borrowed_record.isa",
+   "main": "borrowed_record.isa",
+   "files": {
+    "borrowed_record.isa": "// Struct que guarda uma referência Shared, uma Unique e uma String owned.\nstruct Work {\n  source: &i32,\n  destination: &mut i32,\n  label: String,\n}\n\nfn read(value: &i32) -> i32 {\n  return value + 1;\n}\n\nfn execute(work: Work) -> String {\n  let number = read(work.source);\n  let output = &mut work.destination;\n  output = number;\n  let label = work.label.move();\n  label.push_str(\" concluído\");\n  return label.move();\n}\n\nfn main() {\n  let source = 41;\n  let destination = 0;\n  let result = execute(Work {\n    source: &source,\n    destination: &mut destination,\n    label: String::from(\"trabalho\"),\n  });\n  @println(\"{}: {}\", result, destination);\n  source = 42;\n  destination = 43;\n  @println(\"caller: {} {}\", source, destination);\n}\n"
+   },
+   "category": "ownership",
+   "categoryLabel": "Ownership",
+   "title": "Struct com referências",
+   "summary": "Struct com um campo &i32, um &mut i32 e uma String owned; os empréstimos terminam quando execute retorna.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "trabalho concluído: 42\ncaller: 42 43",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "ownership/vec_transfer.isa",
+   "main": "vec_transfer.isa",
+   "files": {
+    "vec_transfer.isa": "// Ownership de Vec<i32> e String passado por valor, por &mut e por slice.\n@import \"std.vec\"\n\nfn grow(values: Vec<i32>) -> Vec<i32> {\n  values.push(20);\n  return values.move();\n}\nfn edit(text: &mut String) -> usize {\n  text.push_str(\" editado\");\n  return text.len();\n}\nfn total(values: &i32[]) -> i32 {\n  let sum = 0;\n  let i: usize = 0;\n  while i < values.len() {\n    sum = sum + values[i];\n    i = i + 1;\n  }\n  return sum;\n}\nfn main() {\n  let values = Vec<i32> {\n    10\n  };\n  let result = grow(values.move());\n  @println(\"length = {}\", result.len());\n  let text = String::from(\"texto\");\n  let length = edit(&mut text);\n  @println(\"{} ({})\", text, length);\n  let data: i32[3] = [1, 2, 3];\n  @println(\"sum = {}\", total(&data));\n}\n"
+   },
+   "category": "ownership",
+   "categoryLabel": "Ownership",
+   "title": "Vec e String por valor e por empréstimo",
+   "summary": "Vec<i32> movido para uma função e devolvido, String editada por &mut e array lido como slice.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "length = 2\ntexto editado (13)\nsum = 6",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 6,
+   "frees": 6
+  },
+  {
+   "id": "protocols/work_token.isa",
+   "main": "work_token.isa",
+   "files": {
+    "work_token.isa": "// Protocolo usado em uma função comum e dentro de uma função async.\n@import \"std.async\"\n\nprotocol WorkState {\n  initial Ready;\n  final Ready;\n  state Ready {\n    begin(self) -> Busy;\n  }\n  state Busy {\n    finish(self) -> Ready;\n  }\n}\n\nstruct WorkToken: WorkState {\n  value: i32,\n}\nimpl WorkToken {\n  fn begin(self) {\n    self.value = 41;\n  }\n  fn finish(self) {\n    self.value = 42;\n  }\n}\n\nfn execute(token: WorkToken) -> i32 {\n  token.begin();\n  token.finish();\n  return token.value;\n}\n\nasync fn one() -> i32 {\n  return 1;\n}\nasync fn deferred(token: WorkToken) -> i32 {\n  token.begin();\n  token.finish();\n  let extra = await one();\n  return token.value + extra;\n}\n\nfn main() {\n  print(execute(WorkToken::new()));\n  print(@block_on(deferred(WorkToken::new())));\n}\n"
+   },
+   "category": "protocols",
+   "categoryLabel": "Protocolos",
+   "title": "Protocolo em função async",
+   "summary": "O mesmo protocolo usado em uma função comum e em uma função async executada com @block_on.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "42\n43",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  },
+  {
+   "id": "scoped_worker.isa",
+   "main": "scoped_worker.isa",
+   "files": {
+    "scoped_worker.isa": "fn adjust(value: i32) -> i32 {\n  return value * 3 + 1;\n}\nfn calculate(value: i32) -> i32 {\n  let total = 0;\n  for let i = 0;\n  i < value;\n  i++ {\n    total = total + adjust(i);\n  }\n  return total;\n}\nfn main() {\n  @println(\"{}\", calculate(10));\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Laço for estilo C",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "145",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "std/collections.isa",
+   "main": "collections.isa",
+   "files": {
+    "collections.isa": "@import(\"std.collections\", \"std.matriz\", \"std.algorithms\")\nfn main() {\n  let Matriz = Matriz<i32>::filled(2, 3, 7);\n  Matriz.replace(1, 2, 42);\n  @println(\"Matriz[1,2] = {}\", Matriz.at_copy(1, 2));\n  let map = HashMap<i32, String>::create();\n  map.insert(1, String::from(\"owned value\"));\n  match map.get(1) {\n    Some(value) => {\n      print(value);\n    },\n    None => {}\n  }\n  let tree = BTreeMap<i32, i32>::create();\n  tree.insert(2, 20);\n  tree.insert(1, 10);\n  @println(\"B-tree entries = {}\", tree.len());\n  let values = Vec<i32>::new();\n  values.push(3);\n  values.push(1);\n  values.push(2);\n  Algorithms<i32>::heap_sort(&mut values);\n  @println(\"sorted first = {}\", values.at_copy(0));\n  let queue = Queue<String>::create();\n  queue.enqueue(String::from(\"fifo\"));\n  print(queue.dequeue().unwrap());\n}\n"
+   },
+   "category": "std",
+   "categoryLabel": "Biblioteca padrão",
+   "title": "Coleções da std",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Matriz[1,2] = 42\nowned value\nB-tree entries = 2\nsorted first = 1\nfifo",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 30,
+   "frees": 30
+  },
+  {
+   "id": "std/owned_collections.isa",
+   "main": "owned_collections.isa",
+   "files": {
+    "owned_collections.isa": "@import(\"std.collections\", \"std.algorithms\")\nfn main() {\n  let names = HashMap<String, String>::create();\n  names.insert(String::from(\"language\"), String::from(\"Isalang\"));\n  let key = String::from(\"language\");\n  match names.get_ref(&key) {\n    Some(name) => {\n      print(name);\n    },\n    None => {}\n  }\n  let words = Vec<String>::new();\n  words.push(String::from(\"z\"));\n  words.push(String::from(\"a\"));\n  Algorithms<String>::heap_sort(&mut words);\n  match words.first() {\n    Some(first) => {\n      print(first);\n    },\n    None => {}\n  }\n  let queue = Queue<String>::create();\n  queue.enqueue(String::from(\"first\"));\n  queue.enqueue(String::from(\"second\"));\n  print(queue.dequeue().unwrap());\n  print(queue.dequeue().unwrap());\n  let optional = Option::Some(String::from(\"borrowed\"));\n  let view = optional.as_ref();\n  @assert(view.is_some());\n  match view {\n    Some(text) => {\n      print(text);\n    },\n    None => {}\n  }\n}\n"
+   },
+   "category": "std",
+   "categoryLabel": "Biblioteca padrão",
+   "title": "Coleções com elementos owned",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang\na\nfirst\nsecond\nborrowed",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 29,
+   "frees": 29
+  },
+  {
+   "id": "std/systems.isa",
+   "main": "systems.isa",
+   "files": {
+    "systems.isa": "@import(\"std.env\" as env, \"std.path\", \"std.time\")\nfn main() {\n  let args = env::args();\n  @println(\"argument count = {}\", args.len());\n  match args.get(1) {\n    Some(value) => {\n      @println(\"argument = {}\", value);\n    },\n    None => {\n      @println(\"no additional argument\");\n    },\n  }\n  let path = Path::from(\"examples\").join(\"std/systems.isa\");\n  print(path.to_string());\n  let now = Instant::now();\n  let duration = Duration::from_millis(1);\n  sleep(&duration).unwrap();\n  @println(\"elapsed ns = {}\", now.elapsed_nanos());\n}\n"
+   },
+   "category": "std",
+   "categoryLabel": "Biblioteca padrão",
+   "title": "env, path e time",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [
+    "exemplo"
+   ],
+   "status": "runs",
+   "stdout": "argument count = 2\nargument = exemplo\nexamples/std/systems.isa\nelapsed ns = 1957237",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 17,
+   "frees": 17
+  },
+  {
+   "id": "string_demo.isa",
+   "main": "string_demo.isa",
+   "files": {
+    "string_demo.isa": "fn main() -> i32 {\n  let message = String::from(\"Olá\");\n  message.push_str(\", \");\n  message.push_str(\"Isalang\");\n  print(message);\n  borrow shared message as view {\n    print(view.as_str());\n  }\n  message.push_str(\"!\");\n  print(message);\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "String UTF-8",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Olá, Isalang\nOlá, Isalang\nOlá, Isalang!",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "string_move.isa",
+   "main": "string_move.isa",
+   "files": {
+    "string_move.isa": "fn main() -> i32 {\n  let first = String::from(\"Isalang\");\n  let second = first.move();\n  print(second);\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Move de String",
+   "summary": null,
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "Isalang",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 1,
+   "frees": 1
+  },
+  {
+   "id": "string_positions.isa",
+   "main": "string_positions.isa",
+   "files": {
+    "string_positions.isa": "fn main() -> i32 {\n  let text = String::from(\"aá😀a\");\n  match text.char_at(1) {\n    Option::Some(value) => @println(\"char = {}\", value),\n    Option::None => @println(\"invalid character index\"),\n  }\n  match text.find_from('a', 1) {\n    Option::Some(index) => @println(\"byte offset = {}\", index),\n    Option::None => @println(\"not found\"),\n  }\n  return 0;\n}\n"
+   },
+   "category": "language",
+   "categoryLabel": "Linguagem",
+   "title": "Posições em UTF-8",
+   "summary": "char_at e find_from trabalham com offsets em bytes e retornam Option.",
+   "featured": false,
+   "stdin": "",
+   "args": [],
+   "status": "runs",
+   "stdout": "char = á\nbyte offset = 7",
+   "stderr": "",
+   "exitCode": 0,
+   "allocations": 3,
+   "frees": 3
+  }
+ ],
+ "excluded": [
+  {
+   "id": "async_threaded.isa",
+   "code": "E8006",
+   "reason": "Não funciona no laboratório: a build WebAssembly não tem allocator entre threads, e o checker recusa a transferência para @thread."
+  },
+  {
+   "id": "ffi/advanced.isa",
+   "code": "E7001",
+   "reason": "Não funciona no laboratório: a ponte ABI C da FFI é compilada pelo Clang, que a build WebAssembly não inclui."
+  },
+  {
+   "id": "ffi/record.isa",
+   "code": "E7001",
+   "reason": "Não funciona no laboratório: a ponte ABI C da FFI é compilada pelo Clang, que a build WebAssembly não inclui."
+  },
+  {
+   "id": "ffi/sequences.isa",
+   "code": "E7001",
+   "reason": "Não funciona no laboratório: a ponte ABI C da FFI é compilada pelo Clang, que a build WebAssembly não inclui."
+  },
+  {
+   "id": "protocol_execution.isa",
+   "code": "E7001",
+   "reason": "Não funciona no laboratório: a ponte ABI C da FFI é compilada pelo Clang, que a build WebAssembly não inclui."
+  },
+  {
+   "id": "thread_carriers.isa",
+   "code": "E8006",
+   "reason": "Não funciona no laboratório: a build WebAssembly não tem allocator entre threads, e o checker recusa a transferência para @thread."
+  },
+  {
+   "id": "thread_owned.isa",
+   "code": "E8006",
+   "reason": "Não funciona no laboratório: a build WebAssembly não tem allocator entre threads, e o checker recusa a transferência para @thread."
+  }
+ ]
+}

@@ -1,0 +1,21 @@
+---
+// "Não funciona no laboratório": one rendering for the Lab gate, the Lab panel and the home page.
+// Text in backticks (flags, directives, diagnostic codes) is rendered as code.
+import { LAB_NOT_WORKING } from '../data/example-meta.js';
+const parts = (text: string) => text.split('`').map((t, i) => ({ code: i % 2 === 1, t }));
+---
+<dl class="lab-limits">
+  {LAB_NOT_WORKING.map(item => (
+    <div>
+      <dt>{parts(item.what).map(p => p.code ? <code>{p.t}</code> : p.t)}</dt>
+      <dd>{parts(item.why).map(p => p.code ? <code>{p.t}</code> : p.t)}</dd>
+    </div>
+  ))}
+</dl>
+<style>
+  .lab-limits { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px; }
+  .lab-limits div { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 4px; padding: 10px 12px; background: var(--bg-1); }
+  .lab-limits dt { font-weight: 600; font-size: 14px; color: var(--fg); margin-bottom: 4px; }
+  .lab-limits dd { margin: 0; color: var(--fg-muted); font-size: 13.5px; line-height: 1.55; }
+  .lab-limits code { white-space: nowrap; }
+</style>

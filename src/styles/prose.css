@@ -1,0 +1,23 @@
+/* Typography for rendered Markdown/MDX documentation. */
+.prose { max-width: 74ch; font-size: 16.5px; line-height: 1.7; }
+.prose .crumb { margin: 0 0 10px; }
+.prose h1 { font-size: clamp(30px, 4vw, 40px); margin: 0 0 14px; }
+.prose .lede { font-size: 18.5px; color: var(--fg-muted); margin-bottom: 28px; }
+.prose h2 { font-size: 24px; margin: 2.2em 0 .6em; padding-top: .6em; border-top: 1px solid var(--line); }
+.prose h3 { font-size: 19px; margin: 1.8em 0 .5em; }
+.prose h4 { font-size: 16px; margin: 1.6em 0 .4em; }
+.prose h2 a, .prose h3 a { text-decoration: none; }
+.prose p, .prose ul, .prose ol, .prose blockquote, .prose table, .prose pre { margin: 0 0 1.15em; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose li { margin-bottom: .35em; }
+.prose li::marker { color: var(--fg-dim); }
+.prose a { color: var(--fg); text-decoration-color: var(--own); }
+.prose strong { font-weight: 600; color: var(--fg); }
+.prose blockquote { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 16px; color: var(--fg-muted); }
+.prose hr { border: none; border-top: 1px solid var(--line); margin: 2.4em 0; }
+.prose table { width: 100%; border-collapse: collapse; font-size: 14.5px; display: block; overflow-x: auto; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+.prose th { background: var(--bg-1); font-weight: 600; }
+.prose pre.astro-code, .prose pre.shiki { font-size: 13.5px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; }
+.prose img { border-radius: var(--radius); border: 1px solid var(--line); }
+.prose .draft-note { color: var(--warn); font: 13px var(--font-mono); }

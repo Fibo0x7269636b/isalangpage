@@ -1,0 +1,15 @@
+// Empréstimo Unique usado antes de um await; a String continua owned por main.
+@import "std.async"
+
+fn append(text: &mut String) {
+  text.push_str("!");
+}
+async fn number() -> i32 {
+  return 7;
+}
+async fn main() {
+  let text = String::from("pronto");
+  append(&mut text);
+  let value = await number();
+  @println("{} {}", text, value);
+}

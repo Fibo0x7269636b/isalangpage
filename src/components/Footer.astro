@@ -1,0 +1,33 @@
+---
+import Logo from './Logo.astro';
+import { url } from '../lib/paths.js';
+import { githubUrl, SITE } from '../site.config.js';
+import manifest from '../../public/isac/manifest.json';
+const sha = manifest.compiler.sha256.slice(0, 12);
+---
+<footer class="site-footer">
+  <div class="wrap grid">
+    <div>
+      <a class="brand" href={url('/')}><Logo size={16} /><span class="mono">isalang</span></a>
+      <p class="note">Linguagem experimental. A sintaxe, a biblioteca padrão e a ABI ainda mudam entre versões do compilador.</p>
+    </div>
+    <ul>
+      <li><a href={url('/lab/')}>Lab</a></li>
+      <li><a href={url('/docs/')}>Documentação</a></li>
+      <li><a href={url('/#instalar')}>Instalação</a></li>
+      <li><a href={githubUrl(SITE.compilerRepo)} rel="noopener">Compilador no GitHub</a></li>
+    </ul>
+    <p class="build mono">isac.wasm {sha} · LLVM/MLIR {manifest.toolchain?.llvm ?? '?'} · Emscripten {manifest.toolchain?.emscripten ?? '?'}</p>
+  </div>
+</footer>
+<style>
+  .site-footer { border-top: 1px solid var(--line); margin-top: 96px; padding: 32px 0 40px; color: var(--fg-muted); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px 48px; align-items: start; }
+  .brand { display: inline-flex; gap: 8px; align-items: center; text-decoration: none; color: var(--fg); font-weight: 600; margin-bottom: 10px; }
+  .note { max-width: 46ch; margin: 0; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+  a { text-decoration: none; }
+  a:hover { color: var(--fg); }
+  .build { grid-column: 1 / -1; font-size: 12px; color: var(--fg-dim); margin: 8px 0 0; padding-top: 16px; border-top: 1px dashed var(--line); overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>

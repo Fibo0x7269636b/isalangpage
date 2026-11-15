@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/paths.js';
+---
+<Base title="Página não encontrada">
+  <section class="wrap"><div class="nf">
+    <p class="path mono" aria-hidden="true">404</p>
+    <h1>Página não encontrada</h1>
+    <p>O endereço pode ter mudado ou ter sido digitado errado. As páginas principais são:</p>
+    <p class="links"><a class="btn" href={url('/')}>Visão geral</a> <a class="btn" href={url('/lab/')}>Lab</a> <a class="btn" href={url('/docs/')}>Documentação</a></p>
+  </div></section>
+</Base>
+<style>
+  .nf { padding-top: 96px; max-width: 760px; }
+  .path { font-size: 64px; line-height: 1; color: var(--line-strong); margin: 0 0 20px; }
+  h1 { font-size: 36px; }
+  p { color: var(--fg-muted); }
+  .links { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>

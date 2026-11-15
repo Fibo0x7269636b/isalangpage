@@ -1,0 +1,56 @@
+{
+ "source": "@import \"std.box\"\nfn main() -> i32 {\n  let a = BoxI32::new(42);\n  let b = a.move();\n  print(b.get());\n  return 0;\n}\n",
+ "file": "examples/heap/box.isa",
+ "pipeline": [
+  {
+   "stage": "tokens",
+   "lines": 43,
+   "excerpt": "3:3 let\n3:7 a\n3:9 =\n3:11 BoxI32\n3:17 ::\n3:19 new\n3:22 (\n3:23 42\n3:25 )\n3:26 ;\n4:3 let\n4:7 b\n4:9 =\n4:11 a"
+  },
+  {
+   "stage": "ast",
+   "lines": 285,
+   "excerpt": "fn ::main -> i32\n  LetStmt a (Call BoxI32::new (LiteralInt 42))\n  LetStmt b (MethodCall move (Identifier a))\n  ExprStmt  (Call print (MethodCall get (Identifier b)))\n  ReturnStmt  (LiteralInt 0)"
+  },
+  {
+   "stage": "hir",
+   "lines": 364,
+   "excerpt": "fn #F115 main -> #T1 kind=Normal effects={ IO Allocation }\n  let bind #v144 call<T17> expr=#E58#29 BoxI32::new (constant<T1> expr=#E59 42)\n  let bind #v145 move<T17> expr=#E60 move (symbol<T17> expr=#E61#144 a)\n  expr print<T0> expr=#E62 print (method<T1> expr=#E63#30 get (symbol<T17> expr=#E64#145 b))\n  return constant<T1> expr=#E65 0"
+  },
+  {
+   "stage": "core",
+   "lines": 361,
+   "excerpt": "fn #F115 main kind=Normal effects={ IO Allocation }\n  %56 = constant 42 : omega i32\n  %57 = heap.alloc #F29 box.new %56 : 1 BoxI32 allocation=present memory=Own\n  bind #v144(a) %57 : 1 BoxI32\n  end_views\n  %58 = move #v144(a) move [consume %57; source=Dead] : 1 BoxI32\n  bind #v145(b) %58 : 1 BoxI32\n  end_views\n  %59 = call #v145(b) #F30 get : omega i32\n  print print %59\n  end_views\n  %60 = constant 0 : omega i32\n  drop #v145 DropGlue(#T17) => heap.free\n  return %60"
+  },
+  {
+   "stage": "erased",
+   "lines": 179,
+   "excerpt": "fn isa_115_main\n  %120 = constant 42\n  %121 = constant 4\n  %122 = heap.alloc %121\n  store.ptr %122 %120\n  %123 = call isa_30_BoxI32__get %122\n  call isac_rt_print_i32 %123\n  %124 = constant 0\n  free %122\n  return %124"
+  },
+  {
+   "stage": "lir",
+   "lines": 217,
+   "excerpt": "fn isa_115_main\n  ^bb0:\n    %120 = constant 42\n    %121 = constant 4\n    %122 = heap.alloc %121\n    store.ptr %122 %120\n    %123 = call isa_30_BoxI32__get %122\n    call isac_rt_print_i32 %123\n    %124 = constant 0\n    free %122\n    return %124"
+  },
+  {
+   "stage": "mlir",
+   "lines": 368,
+   "excerpt": "  func.func @isa_115_main() -> i32 {\n    %c42_i32 = arith.constant 42 : i32\n    %c4_i32 = arith.constant 4 : i32\n    %0 = \"isac.alloc\"(%c4_i32) : (i32) -> !llvm.ptr\n    \"isac.store\"(%0, %c42_i32) : (!llvm.ptr, i32) -> ()\n    %1 = \"isac.call\"(%0) {callee = @isa_30_BoxI32__get} : (!llvm.ptr) -> i32\n    \"isac.call\"(%1) {callee = @isac_rt_print_i32} : (i32) -> ()\n    %c0_i32 = arith.constant 0 : i32\n    \"isac.free\"(%0) : (!llvm.ptr) -> ()\n    \"isac.return\"(%c0_i32) : (i32) -> ()\n  }\n  func.func @main(%arg0: i32, %arg1: !llvm.ptr) -> i32 {"
+  },
+  {
+   "stage": "std-mlir",
+   "lines": 430,
+   "excerpt": "  func.func @isa_115_main() -> i32 {\n    %c42_i32 = arith.constant 42 : i32\n    %c4_i32 = arith.constant 4 : i32\n    %0 = call @isac_rt_alloc(%c4_i32) : (i32) -> !llvm.ptr\n    llvm.store %c42_i32, %0 : i32, !llvm.ptr\n    %1 = call @isa_30_BoxI32__get(%0) : (!llvm.ptr) -> i32\n    call @isac_rt_print_i32(%1) : (i32) -> ()\n    %c0_i32 = arith.constant 0 : i32\n    call @isac_rt_free(%0) : (!llvm.ptr) -> ()\n    return %c0_i32 : i32\n  }\n  func.func @main(%arg0: i32, %arg1: !llvm.ptr) -> i32 {"
+  },
+  {
+   "stage": "llvm-dialect",
+   "lines": 596,
+   "excerpt": "  llvm.func @isa_115_main() -> i32 {\n    %0 = llvm.mlir.constant(0 : i32) : i32\n    %1 = llvm.mlir.constant(42 : i32) : i32\n    %2 = llvm.mlir.constant(4 : i32) : i32\n    %3 = llvm.call @isac_rt_alloc(%2) : (i32) -> !llvm.ptr\n    llvm.store %1, %3 : i32, !llvm.ptr\n    %4 = llvm.call @isa_30_BoxI32__get(%3) : (!llvm.ptr) -> i32\n    llvm.call @isac_rt_print_i32(%4) : (i32) -> ()\n    llvm.call @isac_rt_free(%3) : (!llvm.ptr) -> ()\n    llvm.return %0 : i32\n  }"
+  },
+  {
+   "stage": "llvm",
+   "lines": 668,
+   "excerpt": "define i32 @isa_115_main() {\n  %1 = call ptr @isac_rt_alloc(i32 4)\n  store i32 42, ptr %1, align 4\n  %2 = call i32 @isa_30_BoxI32__get(ptr %1)\n  call void @isac_rt_print_i32(i32 %2)\n  call void @isac_rt_free(ptr %1)\n  ret i32 0\n}"
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+build-wasm/
+build-usr-lib-isac/
+test-results/
+playwright-report/
+*.log
+README.local.md

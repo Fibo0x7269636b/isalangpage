@@ -1,0 +1,33 @@
+// Struct que guarda uma referência Shared, uma Unique e uma String owned.
+struct Work {
+  source: &i32,
+  destination: &mut i32,
+  label: String,
+}
+
+fn read(value: &i32) -> i32 {
+  return value + 1;
+}
+
+fn execute(work: Work) -> String {
+  let number = read(work.source);
+  let output = &mut work.destination;
+  output = number;
+  let label = work.label.move();
+  label.push_str(" concluído");
+  return label.move();
+}
+
+fn main() {
+  let source = 41;
+  let destination = 0;
+  let result = execute(Work {
+    source: &source,
+    destination: &mut destination,
+    label: String::from("trabalho"),
+  });
+  @println("{}: {}", result, destination);
+  source = 42;
+  destination = 43;
+  @println("caller: {} {}", source, destination);
+}

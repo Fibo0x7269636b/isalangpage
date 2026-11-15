@@ -1,0 +1,26 @@
+// Structs aninhadas com campos escalares, tamanho e alinhamento calculados pelo compilador.
+struct Inner {
+  small: i16,
+  active: bool,
+}
+struct Sample {
+  tag: u8,
+  number: i64,
+  inner: Inner,
+  ratio: f64,
+}
+fn score(sample: &Sample) -> i64 {
+  return sample.number + sample.tag as i64;
+}
+fn main() -> i32 {
+  let sample = Sample::new();
+  sample.tag = 7u8;
+  sample.number = 35i64;
+  sample.inner.small = 7i16;
+  sample.inner.active = true;
+  sample.ratio = 2.5;
+  @println("{} {} {}", sample.tag, sample.number, sample.inner.active);
+  @println("score={} ratio={}", score(&sample), sample.ratio);
+  @println("size={} align={}", @size_of<Sample>(), @align_of<Sample>());
+  return 0;
+}

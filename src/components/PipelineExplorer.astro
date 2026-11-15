@@ -1,0 +1,93 @@
+---
+// Real dumps of examples/heap/box.isa at each compiler stage (src/data/pipeline.json).
+import data from '../data/pipeline.json';
+import { url } from '../lib/paths.js';
+const notes: Record<string, { title: string; text: string }> = {
+  tokens: { title: 'Tokens', text: 'Lexer com spans linha:coluna. Token trees alimentam a expansão de @macro antes do parser.' },
+  ast: { title: 'AST', text: 'Somente estrutura sintática. Nomes ainda são texto; impl preserva o receiver declarado.' },
+  hir: { title: 'HIR', text: 'Nomes resolvidos para SymbolId, TypeId e FunctionId. Move, chamada de método e construtor já são distintos.' },
+  core: { title: 'Core verificado', text: 'Instruções com quantidade (0, 1, ω) e estado de memória. O checker de recursos e regiões roda aqui; move marca a origem como Dead.' },
+  erased: { title: 'Erasure', text: 'Recebe só Core verificado. Estados, loans e regiões desaparecem; move vira o mesmo buffer e drop vira free.' },
+  lir: { title: 'LIR', text: 'IR operacional em CFG com blocos básicos explícitos, base da liveness e do lowering.' },
+  mlir: { title: 'Dialeto isac', text: 'Operações isac.alloc, isac.store, isac.call e isac.free em MLIR.' },
+  'std-mlir': { title: 'Dialetos padrão', text: 'Lowering para func, arith, cf e memref; chamadas ao runtime isac_rt_* aparecem aqui.' },
+  'llvm-dialect': { title: 'Dialeto LLVM', text: 'Conversão completa para o dialeto llvm do MLIR antes da tradução.' },
+  llvm: { title: 'LLVM IR', text: 'Tradução para LLVM IR. O backend LLVM gera objeto ou assembly para o target escolhido.' },
+};
+---
+<div class="pipeline" data-pipeline>
+  <div class="rail" role="tablist" aria-label="Estágios do compilador">
+    {data.pipeline.map((s: any, i: number) => (
+      <button type="button" role="tab" id={`stage-tab-${s.stage}`} aria-controls={`stage-${s.stage}`} aria-selected={s.stage === 'core' ? 'true' : 'false'} tabindex={s.stage === 'core' ? 0 : -1} data-stage={s.stage}>
+        <span class="n mono">{String(i + 1).padStart(2, '0')}</span>
+        <span class="t">{notes[s.stage].title}</span>
+        <span class="flag mono">--emit-{s.stage}</span>
+      </button>
+    ))}
+  </div>
+  <div class="views">
+    {data.pipeline.map((s: any) => (
+      <section role="tabpanel" id={`stage-${s.stage}`} aria-labelledby={`stage-tab-${s.stage}`} hidden={s.stage !== 'core'}>
+        <p>{notes[s.stage].text}</p>
+        <pre class="dump mono"><code>{s.excerpt}</code></pre>
+        <p class="meta mono">trecho de <code>isac box.isa --emit-{s.stage}</code> · dump completo: {s.lines} linhas, inclui a std importada</p>
+      </section>
+    ))}
+  </div>
+</div>
+<script>
+  function init() {
+    document.querySelectorAll<HTMLElement>('[data-pipeline]').forEach(root => {
+      if (root.dataset.ready) return;
+      root.dataset.ready = 'true';
+      const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role=tab]')];
+      const select = (tab: HTMLButtonElement, focus = false) => {
+        tabs.forEach(t => {
+          const on = t === tab;
+          t.setAttribute('aria-selected', String(on));
+          t.tabIndex = on ? 0 : -1;
+          root.querySelector<HTMLElement>('#' + t.getAttribute('aria-controls'))!.hidden = !on;
+        });
+        if (focus) tab.focus();
+      };
+      tabs.forEach((t, i) => {
+        t.addEventListener('click', () => select(t));
+        t.addEventListener('keydown', e => {
+          const d = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
+          if (!d) return;
+          e.preventDefault();
+          select(tabs[(i + d + tabs.length) % tabs.length], true);
+        });
+      });
+    });
+  }
+  document.addEventListener('astro:page-load', init);
+</script>
+<style>
+  .pipeline { display: grid; grid-template-columns: 260px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 8px; background: var(--bg-1); overflow: hidden; }
+  .rail { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--bg); padding: 6px 0; }
+  .rail button { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 8px; text-align: left; background: none; border: none; color: var(--fg-muted); padding: 7px 14px; cursor: pointer; position: relative; font: inherit; }
+  .rail button::before { content: ''; position: absolute; left: 27px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .rail button:first-child::before { top: 50%; }
+  .rail button:last-child::before { bottom: 50%; }
+  .rail .n { grid-row: 1 / 3; font-size: 11px; color: var(--fg-dim); align-self: center; position: relative; z-index: 1; background: var(--bg); padding: 2px 0; text-align: center; }
+  .rail .t { font-size: 14px; }
+  .rail .flag { font-size: 10.5px; color: var(--fg-dim); }
+  .rail button:hover { color: var(--fg); background: var(--bg-1); }
+  .rail button[aria-selected='true'] { color: var(--fg); background: var(--bg-1); }
+  .rail button[aria-selected='true'] .n { color: var(--own); }
+  .rail button[aria-selected='true']::after { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: var(--own); }
+  .views section { padding: 20px 22px; }
+  .views p { color: var(--fg-muted); max-width: 68ch; }
+  .dump { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; font-size: 12.5px; line-height: 1.6; color: var(--fg); overflow-x: auto; }
+  .meta { font-size: 11.5px; color: var(--fg-dim); margin: 12px 0 0; }
+  .meta code { font-size: 11px; }
+  @media (max-width: 860px) {
+    .pipeline { grid-template-columns: minmax(0, 1fr); }
+    .rail { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 0; }
+    .rail button { grid-template-columns: auto; grid-template-rows: auto; padding: 10px 12px; white-space: nowrap; }
+    .rail button::before, .rail .flag { display: none; }
+    .rail .n { grid-row: auto; }
+    .rail button[aria-selected='true']::after { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 2px; }
+  }
+</style>

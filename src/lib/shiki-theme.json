@@ -1,0 +1,24 @@
+{
+  "name": "isalang-dark",
+  "type": "dark",
+  "colors": { "editor.background": "#0f1211", "editor.foreground": "#dfe4de" },
+  "tokenColors": [
+    { "scope": ["comment"], "settings": { "foreground": "#7a857d", "fontStyle": "italic" } },
+    { "scope": ["string", "string.quoted"], "settings": { "foreground": "#a9d08e" } },
+    { "scope": ["constant.character.escape", "constant.other.placeholder"], "settings": { "foreground": "#d7f0a0" } },
+    { "scope": ["constant.numeric", "constant.language"], "settings": { "foreground": "#f2a477" } },
+    { "scope": ["variable.other.constant"], "settings": { "foreground": "#f2c48d" } },
+    { "scope": ["keyword.control", "keyword.declaration", "keyword.other.borrow"], "settings": { "foreground": "#e8b04b" } },
+    { "scope": ["keyword.other.import", "keyword.other.macro"], "settings": { "foreground": "#e8b04b" } },
+    { "scope": ["storage.modifier"], "settings": { "foreground": "#c7a6ff" } },
+    { "scope": ["storage.modifier.access.shared"], "settings": { "foreground": "#5cc8d6" } },
+    { "scope": ["storage.modifier.access.unique"], "settings": { "foreground": "#ff8566" } },
+    { "scope": ["variable.language.self"], "settings": { "foreground": "#c7a6ff", "fontStyle": "italic" } },
+    { "scope": ["entity.name.function.macro", "variable.parameter.macro"], "settings": { "foreground": "#ff8566" } },
+    { "scope": ["entity.name.function"], "settings": { "foreground": "#eef0d9" } },
+    { "scope": ["entity.name.function.call"], "settings": { "foreground": "#cfd8c9" } },
+    { "scope": ["entity.name.type", "support.type"], "settings": { "foreground": "#79d0d9" } },
+    { "scope": ["entity.name.type.state"], "settings": { "foreground": "#9fe0b0" } },
+    { "scope": ["keyword.operator", "punctuation"], "settings": { "foreground": "#9aa39c" } }
+  ]
+}

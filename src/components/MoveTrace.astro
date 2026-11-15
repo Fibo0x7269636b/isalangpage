@@ -1,0 +1,64 @@
+---
+// Hero panel: the real E0301 example with the memory state of each binding per line,
+// followed by the compiler's actual diagnostic (recorded by scripts/lab-examples.mjs).
+import { Code } from 'astro:components';
+import isalang from '../lib/isalang.tmLanguage.json';
+import theme from '../lib/shiki-theme.json';
+import data from '../data/lab-examples.json';
+import { url } from '../lib/paths.js';
+const ex = data.entries.find((e: any) => e.id === 'string_move_invalid.isa')!;
+const source = ex.files[ex.main].replace(/\n$/, '');
+// State of `first` / `second` after each line, as tracked by the resource checker.
+const lanes: Array<[string | null, string | null]> = [
+  [null, null],
+  ['own', null],
+  ['dead', 'own'],
+  ['err', 'own'],
+  [null, null],
+  [null, null],
+];
+const label: Record<string, string> = { own: 'Own', dead: 'Dead', err: 'uso' };
+---
+<div class="trace" aria-label="Exemplo de rejeição de uso após move">
+  <div class="trace-head mono">
+    <span>examples/{ex.id}</span>
+    <span class="cols"><span>first</span><span>second</span></span>
+  </div>
+  <div class="trace-body">
+    <Code code={source} lang={isalang as any} theme={theme as any} />
+    <ol class="lanes mono" aria-hidden="true">
+      {lanes.map(([a, b], i) => (
+        <li style={`--i:${i}`}>
+          <span class:list={['lane', a]}>{a && label[a]}</span>
+          <span class:list={['lane', b]}>{b && label[b]}</span>
+        </li>
+      ))}
+    </ol>
+  </div>
+  <pre class="diag mono" aria-label="Saída do compilador">{`$ isac ${ex.main} --check\n`}<span>{ex.diagnostics}</span></pre>
+  <a class="trace-lab mono" href={url(`/lab/?example=${encodeURIComponent(ex.id)}&start`)} data-lab-start>reproduzir no Lab →</a>
+</div>
+<style>
+  .trace { border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg-1); overflow: hidden; box-shadow: 0 30px 80px -40px rgba(0,0,0,.8); min-width: 0; }
+  .trace-head { display: flex; justify-content: space-between; padding: 9px 14px; font-size: 12px; color: var(--fg-dim); border-bottom: 1px solid var(--line); background: var(--bg); }
+  .cols { display: flex; gap: 0; }
+  .cols span { width: 64px; text-align: center; }
+  .trace-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .trace-body :global(pre.astro-code) { border: none; border-radius: 0; padding: 14px 16px; font-size: 13px; line-height: 24px; background: transparent !important; }
+  .lanes { list-style: none; margin: 0; padding: 14px 14px 14px 0; font-size: 11px; }
+  .lanes li { height: 24px; display: flex; align-items: center; }
+  .lane { width: 64px; display: flex; justify-content: center; }
+  .lane:empty::before { content: ''; width: 1px; height: 24px; background: var(--line); }
+  .lane.own, .lane.dead, .lane.err { opacity: 0; animation: lane-in .4s var(--ease) forwards; animation-delay: calc(var(--i) * 380ms + 300ms); }
+  .lane.own::before, .lane.dead::before, .lane.err::before { content: none; }
+  .lane.own { color: var(--own); }
+  .lane.dead { color: var(--dead); text-decoration: line-through; }
+  .lane.err { color: #17130a; background: var(--err); border-radius: 3px; margin: 0 8px; width: 48px; font-weight: 600; }
+  .lanes li .lane:not(:empty) { border: 1px solid currentColor; border-radius: 3px; margin: 0 8px; width: 48px; height: 18px; align-items: center; }
+  .lanes li .lane.err { border-color: var(--err); }
+  @keyframes lane-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .diag { margin: 0; padding: 14px 16px; border-top: 1px solid var(--line); background: var(--bg); font-size: 12px; line-height: 1.55; color: var(--fg-dim); white-space: pre; overflow-x: auto; }
+  .diag span { color: var(--fg-muted); }
+  .trace-lab { display: block; padding: 10px 16px; font-size: 12px; color: var(--own); border-top: 1px solid var(--line); text-decoration: none; }
+  .trace-lab:hover { background: var(--bg-2); }
+</style>
