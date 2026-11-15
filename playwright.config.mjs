@@ -1,9 +1,9 @@
 // E2E tests run against the production build (npm run build) served by astro preview.
-// Set BASE_PATH to test a project-site prefix (e.g. /isalang-site), as on GitHub Pages.
+// Uses the production base (/isalang) unless BASE_PATH is set, matching astro.config.mjs.
 // Set PW_CHROMIUM to use a system Chromium instead of Playwright's download.
 import { defineConfig, devices } from '@playwright/test';
 
-const base = (process.env.BASE_PATH || '/').replace(/\/?$/, '/');
+const base = (process.env.BASE_PATH === undefined ? '/isalang' : (process.env.BASE_PATH || '/')).replace(/\/?$/, '/');
 const port = 4331;
 
 export default defineConfig({

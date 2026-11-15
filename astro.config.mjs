@@ -4,12 +4,13 @@ import mdx from '@astrojs/mdx';
 import isalang from './src/lib/isalang.tmLanguage.json' with { type: 'json' };
 import theme from './src/lib/shiki-theme.json' with { type: 'json' };
 
-// GitHub Pages: the deploy workflow sets SITE_URL and BASE_PATH from
-// actions/configure-pages (e.g. https://user.github.io and /repo).
-const base = process.env.BASE_PATH || '/';
+// Production: https://isa-language.github.io/isalang/ (repository isa-language/isalang).
+// The deploy workflow passes SITE_URL and BASE_PATH from actions/configure-pages;
+// these defaults match it so local builds produce the same paths.
+const base = process.env.BASE_PATH === undefined ? '/isalang' : (process.env.BASE_PATH || '/');
 
 export default defineConfig({
-  site: process.env.SITE_URL || 'http://localhost:4321',
+  site: process.env.SITE_URL || 'https://isa-language.github.io',
   base,
   trailingSlash: 'always',
   build: { format: 'directory', assets: '_assets' },

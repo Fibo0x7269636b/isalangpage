@@ -7,11 +7,11 @@ export const SITE = {
   name: 'Isalang',
   description: 'Linguagem experimental de programação de sistemas com ownership, typestate e verificação estática de recursos. Compilador Isac com backend MLIR/LLVM.',
   // owner/name of this site's repository (documentation sources live here)
-  repo: env.GITHUB_REPOSITORY || env.ISALANG_SITE_REPO || 'isalang/isalang-site',
+  repo: env.GITHUB_REPOSITORY || env.ISALANG_SITE_REPO || 'isa-language/isalang',
   branch: env.ISALANG_DOCS_BRANCH || 'main',
   docsDir: 'src/content/docs',
   // owner/name of the compiler repository
-  compilerRepo: env.ISALANG_COMPILER_REPO || env.GITHUB_REPOSITORY || 'isalang/isalang',
+  compilerRepo: env.ISALANG_COMPILER_REPO || 'isa-language/isalang',
 };
 
 export const githubUrl = (repo = SITE.repo) => `https://github.com/${repo}`;
