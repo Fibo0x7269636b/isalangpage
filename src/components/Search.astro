@@ -98,4 +98,12 @@
   .results :global(.r-excerpt) { display: block; font-size: 13.5px; color: var(--fg-muted); }
   .results :global(mark) { background: none; color: var(--own); }
   .results :global(.empty) { color: var(--fg-dim); padding: 12px; margin: 0; font-size: 14px; }
+  @media (pointer: coarse) {
+    .search-trigger kbd { display: none; }
+    .search-trigger { height: 44px; }
+  }
+  @media (max-width: 560px) {
+    .search-dialog { margin-top: 12px; max-height: calc(100dvh - 24px); }
+    .results { max-height: calc(100dvh - 90px); }
+  }
 </style>

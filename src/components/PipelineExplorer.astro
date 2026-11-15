@@ -49,6 +49,8 @@ const notes: Record<string, { title: string; text: string }> = {
           root.querySelector<HTMLElement>('#' + t.getAttribute('aria-controls'))!.hidden = !on;
         });
         if (focus) tab.focus();
+        // On phones the rail scrolls sideways; keep the chosen stage in view.
+        tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
       };
       tabs.forEach((t, i) => {
         t.addEventListener('click', () => select(t));
@@ -89,5 +91,10 @@ const notes: Record<string, { title: string; text: string }> = {
     .rail button::before, .rail .flag { display: none; }
     .rail .n { grid-row: auto; }
     .rail button[aria-selected='true']::after { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 2px; }
+  }
+  @media (max-width: 560px) {
+    .views section { padding: 16px 14px; }
+    .views p { font-size: 15px; }
+    .dump { padding: 12px; font-size: 11.5px; margin: 0 -2px; }
   }
 </style>

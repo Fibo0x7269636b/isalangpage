@@ -31,7 +31,7 @@ const links = [
     </nav>
     <a class="isac-status" href={url('/lab/')} data-state="idle" title="Estado do compilador Isac nesta sessão">
       <span class="dot" aria-hidden="true"></span>
-      <span class="text mono">isac: não carregado</span>
+      <span class="text mono"><span class="k">isac: </span><span data-state-text>não carregado</span></span>
     </a>
   </div>
 </header>
@@ -41,13 +41,13 @@ const links = [
   // The header is persisted across client-side navigations, so this runs once.
   const header = document.querySelector('.site-header');
   const status = header.querySelector('.isac-status');
-  const text = status.querySelector('.text');
+  const text = status.querySelector('[data-state-text]');
   labStatus.subscribe(s => {
     status.dataset.state = s.state;
     text.textContent =
-      s.state === 'ready' ? 'isac: pronto' :
-      s.state === 'loading' ? `isac: ${s.percent != null ? s.percent + '%' : 'carregando'}` :
-      s.state === 'error' ? 'isac: falhou' : 'isac: não carregado';
+      s.state === 'ready' ? 'pronto' :
+      s.state === 'loading' ? (s.percent != null ? s.percent + '%' : 'carregando') :
+      s.state === 'error' ? 'falhou' : 'não carregado';
   });
   // Links marked data-lab-start begin loading the compiler on click, so the
   // download overlaps with the navigation to /lab/.
@@ -61,9 +61,11 @@ const links = [
     toggle.setAttribute('aria-expanded', String(open));
     header.classList.toggle('open', open);
   });
+  const closeMenu = () => { toggle.setAttribute('aria-expanded', 'false'); header.classList.remove('open'); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && header.classList.contains('open')) { closeMenu(); toggle.focus(); } });
+  document.addEventListener('pointerdown', e => { if (header.classList.contains('open') && !header.contains(e.target as Node)) closeMenu(); });
   document.addEventListener('astro:page-load', () => {
-    toggle.setAttribute('aria-expanded', 'false');
-    header.classList.remove('open');
+    closeMenu();
     const section = document.body.dataset.section;
     header.querySelectorAll('[data-nav]').forEach(a => {
       if (a.dataset.nav === section) a.setAttribute('aria-current', 'page');
@@ -107,6 +109,10 @@ const links = [
     @keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } }
     ul a { padding: 10px 6px; font-size: 15px; }
     ul a[aria-current='page'] { box-shadow: inset 2px 0 0 var(--own); padding-left: 12px; }
-    .isac-status { margin-left: auto; }
+    .isac-status { margin-left: auto; min-height: 34px; }
+  }
+  @media (max-width: 420px) {
+    .isac-status .k { display: none; }
+    .brand { gap: 8px; }
   }
 </style>

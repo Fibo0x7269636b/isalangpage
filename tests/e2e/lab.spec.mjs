@@ -120,3 +120,26 @@ test('example links open the Lab with that program and start loading', async ({ 
   const id = new URL(page.url()).searchParams.get('example');
   await expect(page.locator('[data-example]')).toHaveValue(id);
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 375, height: 760 }, hasTouch: true, isMobile: true });
+
+  test('the toolbar stays reachable and running scrolls to the output', async ({ page }) => {
+    await page.goto('lab/?example=connection.isa&start');
+    await expect(editor(page)).toBeVisible({ timeout: 90_000 });
+    await page.getByRole('button', { name: 'Executar' }).tap();
+    await expect(page.locator('[data-terminal]')).toContainText('[exit 0]');
+    await expect(page.locator('[data-terminal]')).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Executar' })).toBeInViewport();
+    const width = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(width).toBeLessThanOrEqual(375);
+  });
+
+  test('the docs page list starts collapsed', async ({ page }) => {
+    await page.goto('docs/');
+    const nav = page.locator('[data-docs-nav]');
+    await expect(nav).not.toHaveAttribute('open');
+    await nav.locator('summary').tap();
+    await expect(nav.getByRole('link', { name: 'Editor de páginas' })).toBeVisible();
+  });
+});

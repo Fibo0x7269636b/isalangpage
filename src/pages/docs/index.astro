@@ -66,4 +66,10 @@ const sections = groupBySection(docs);
   .sections a:hover { border-color: var(--line-strong); }
   .sections .t { display: block; font-weight: 600; }
   .sections .d { display: block; color: var(--fg-muted); font-size: 14px; }
+  @media (max-width: 560px) {
+    .lead { font-size: 16px; }
+    .flow { margin: 28px 0; }
+    .flow li { grid-template-columns: 18px 1fr; gap: 10px; padding: 16px 14px; }
+    .actions .btn { flex: 1; justify-content: center; height: 44px; }
+  }
 </style>

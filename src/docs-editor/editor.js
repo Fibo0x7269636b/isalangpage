@@ -253,6 +253,8 @@ export function mountDocEditor(root, data) {
       ],
     }),
   });
+  // Fonts load after the first measure; re-measure so wrapped lines and gutter align.
+  document.fonts?.ready.then(() => view.requestMeasure());
 
   Object.values(fields).forEach(input => input.addEventListener('input', () => {
     if (input === fields.slug) slugTouched = true;

@@ -107,6 +107,15 @@ pre.astro-code { background: var(--bg-1) !important; padding: 16px 18px; border:
 .btn .key { font-size: 11px; color: var(--fg-dim); border: 1px solid var(--line-strong); border-radius: 3px; padding: 2px 4px; }
 .btn.primary .key { color: #3a2e12; border-color: #b88a33; }
 
+/* Phones: controls reach a comfortable touch size, and text fields use 16px so
+   iOS Safari does not zoom in when one is focused. */
+@media (pointer: coarse) {
+  .btn { min-height: 40px; }
+  .btn.small { height: 36px; padding: 0 12px; }
+  input, select, textarea { font-size: 16px !important; }
+  [data-editor] .cm-editor { font-size: 16px !important; }
+}
+
 /* memory-state chips */
 .mode { font: 500 12px/1 var(--font-mono); padding: 3px 6px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
 .mode.own { color: var(--own); }

@@ -289,9 +289,18 @@ function showPanel(name) {
 // ---------------------------------------------------------------- actions
 const cliLine = args => 'isac ' + args.join(' ');
 
+// On narrow screens the output sits below the editor; bring it into view.
+const stacked = () => matchMedia('(max-width: 900px)').matches;
+function revealOutput() {
+  if (!stacked()) return;
+  const pane = root.querySelector('.output-pane');
+  if (pane.getBoundingClientRect().top > innerHeight * 0.6) pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function runCompiler(args, outputs = [], { keepBusy = false } = {}) {
   clearOutputs();
   showPanel('terminal');
+  revealOutput();
   termWrite(`$ ${cliLine(args)}\n`, 'cmd');
   setBusy(true);
   let ok = false;
@@ -435,8 +444,11 @@ export function mountIDE(container) {
   if (info) $('[data-target-info]').textContent = `isac · ${info.target}`;
   showPanel(ws.panel ?? 'terminal');
   setBusy(false);
-  setStatus({ message: 'pronto · Ctrl+Enter executa, Ctrl+Shift+Enter verifica' });
-  view.focus();
+  setStatus({ message: matchMedia('(pointer: coarse)').matches ? 'pronto' : 'pronto · Ctrl+Enter executa, Ctrl+Shift+Enter verifica' });
+  // Fonts load after the first measure; re-measure so gutters line up.
+  document.fonts?.ready.then(() => { view.requestMeasure(); irView.requestMeasure(); });
+  // Focusing on a phone would open the keyboard over the page.
+  if (matchMedia('(pointer: fine)').matches) view.focus();
 }
 
 export function unmountIDE() {
